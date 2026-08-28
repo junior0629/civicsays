@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#111111" />
+  <title>Setup — CivicSays</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" />
+
+  <link rel="stylesheet" href="style/tokens.css" />
+  <link rel="stylesheet" href="style/base.css" />
+  <link rel="stylesheet" href="style/components.css" />
+  <link rel="stylesheet" href="style/layout.css" />
+
+  <link rel="icon" type="image/png" href="Logo.png" />
+</head>
+<body>
+  <a href="#main" class="visually-hidden">Skip to content</a>
+
+  <main id="main" class="auth-page">
+    <div class="auth-card glass-card fade-in">
+      <div class="auth-header">
+        <div class="row" style="justify-content:center; margin-bottom:var(--space-3);">
+          <img src="Logo.png" alt="" style="width:44px; height:44px; border-radius:var(--radius-md);" />
+        </div>
+        <h1 class="auth-title">Connect to Supabase</h1>
+        <p class="auth-subtitle">CivicSays runs on Supabase. Paste your project credentials once and you're set.</p>
+      </div>
+
+      <form id="setup-form" class="stack gap-4" novalidate>
+        <div class="field">
+          <label for="supabase-url" class="field-label">Project URL</label>
+          <input
+            id="supabase-url"
+            class="input"
+            type="url"
+            autocomplete="url"
+            placeholder="https://your-project.supabase.co"
+            required
+          />
+          <div class="field-hint">Found in Supabase dashboard → Project Settings → API</div>
+        </div>
+
+        <div class="field">
+          <label for="supabase-key" class="field-label">Anon public key</label>
+          <div class="row gap-2" style="position:relative;">
+            <input
+              id="supabase-key"
+              class="input"
+              type="password"
+              autocomplete="off"
+              placeholder="eyJhbGciOi..."
+              required
+              style="flex:1; padding-right:40px;"
+            />
+            <button
+              type="button"
+              id="toggle-key"
+              class="icon-btn"
+              aria-label="Show key"
+              style="position:absolute; right:4px; top:50%; transform:translateY(-50%);"
+            >
+              <svg class="icon" aria-hidden="true" id="eye-icon"><use href="assets/icons.svg#i-eye"></use></svg>
+            </button>
+          </div>
+          <div class="field-hint">The <code>anon</code> public key, not the service role key.</div>
+        </div>
+
+        <div id="setup-error" class="field-error" style="display:none;"></div>
+
+        <div class="row gap-3" style="margin-top:var(--space-2);">
+          <button type="submit" class="btn btn-primary btn-block" id="setup-submit">
+            <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-check"></use></svg>
+            Connect
+          </button>
+        </div>
+
+        <div class="row between" style="margin-top:var(--space-3);">
+          <a href="https://supabase.com" target="_blank" rel="noopener" class="text-muted fs-xs">
+            Don't have a project? Create one →
+          </a>
+          <a href="supabase/README.md" class="text-muted fs-xs" target="_blank" rel="noopener">
+            Setup guide
+          </a>
+        </div>
+      </form>
+
+      <hr class="divider" style="margin-top:var(--space-6);" />
+
+      <details class="text-muted fs-sm" style="line-height:var(--lh-relaxed);">
+        <summary style="cursor:pointer; color:var(--text-secondary); font-weight:var(--fw-medium);">
+          Why is this needed?
+        </summary>
+        <p style="margin-top:var(--space-2);">
+          CivicSays stores all data in your own Supabase project — tickets, comments, inquiries, and chat messages. You keep full ownership. The connection credentials are saved only in this browser's localStorage and are never sent anywhere except Supabase.
+        </p>
+      </details>
+    </div>
+  </main>
+
+  <script type="module" src="js/setup.js"></script>
+</body>
+</html>

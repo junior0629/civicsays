@@ -1,0 +1,178 @@
+/* =========================================================================
+   CivicSays — Design Tokens
+   Dark premium glassmorphism + warm orange accent
+   All UI components read from these custom properties.
+   ========================================================================= */
+
+:root {
+  /* -------------------------------------------------------------------------
+     Background — warm dark, never pure black
+     ------------------------------------------------------------------------- */
+  --bg-primary:      #111111;
+  --bg-secondary:    #161412;
+  --bg-elevated:     #1c1b19;
+  --bg-overlay:      rgba(17, 17, 17, 0.85);
+
+  /* -------------------------------------------------------------------------
+     Glass surfaces — semi-transparent dark with subtle warmth
+     ------------------------------------------------------------------------- */
+  --glass-primary:    rgba(35, 32, 29, 0.75);
+  --glass-secondary:  rgba(28, 27, 25, 0.65);
+  --glass-hover:      rgba(45, 41, 37, 0.80);
+  --glass-input:      rgba(20, 19, 18, 0.65);
+  --glass-deep:       rgba(35, 32, 29, 0.70);
+
+  /* Backdrop blur scale */
+  --blur-sm: blur(8px);
+  --blur-md: blur(14px);
+  --blur-lg: blur(18px);
+  --blur-xl: blur(24px);
+
+  /* -------------------------------------------------------------------------
+     Borders — extremely subtle
+     ------------------------------------------------------------------------- */
+  --border-default:  rgba(255, 255, 255, 0.08);
+  --border-hover:    rgba(255, 255, 255, 0.12);
+  --border-active:   rgba(255, 138, 42, 0.35);
+  --border-strong:   rgba(255, 255, 255, 0.16);
+
+  /* -------------------------------------------------------------------------
+     Primary accent — warm orange, used sparingly
+     ------------------------------------------------------------------------- */
+  --accent:           #FF8A2A;
+  --accent-hover:     #FF9A45;
+  --accent-pressed:   #E8761A;
+  --accent-soft:      rgba(255, 138, 42, 0.12);
+  --accent-soft-2:    rgba(255, 138, 42, 0.20);
+  --accent-glow:      rgba(255, 138, 42, 0.30);
+  --accent-text:      #111111;   /* dark text on orange bg */
+
+  /* -------------------------------------------------------------------------
+     Text — off-white, never pure white
+     ------------------------------------------------------------------------- */
+  --text-primary:     #F5F5F5;
+  --text-secondary:   #B5B1AC;
+  --text-muted:       #77736E;
+  --text-disabled:    #4F4C48;
+  --text-inverse:     #111111;
+
+  /* -------------------------------------------------------------------------
+     Status colors — muted, not neon
+     ------------------------------------------------------------------------- */
+  --status-success:   #55C878;
+  --status-warning:   #FFB347;
+  --status-error:     #E96A6A;
+  --status-info:      #6FA8DC;
+  --status-pending:   #FFB347;   /* warm amber, matches warning */
+  --status-process:   #6FA8DC;   /* blue, matches info */
+  --status-hold:      #B5B1AC;   /* neutral */
+  --status-solved:    #55C878;   /* green, matches success */
+
+  /* Soft variants of status colors (for backgrounds) */
+  --status-success-soft: rgba(85, 200, 120, 0.12);
+  --status-warning-soft: rgba(255, 179, 71, 0.12);
+  --status-error-soft:   rgba(233, 106, 106, 0.12);
+  --status-info-soft:    rgba(111, 168, 220, 0.12);
+
+  /* -------------------------------------------------------------------------
+     Shadows — soft, diffused, never heavy black
+     ------------------------------------------------------------------------- */
+  --shadow-sm:  0 2px 8px rgba(0, 0, 0, 0.20);
+  --shadow-md:  0 8px 30px rgba(0, 0, 0, 0.25);
+  --shadow-lg:  0 12px 40px rgba(0, 0, 0, 0.35);
+  --shadow-glow: 0 0 24px rgba(255, 138, 42, 0.20);
+
+  /* -------------------------------------------------------------------------
+     Radii — rounded, never sharp
+     ------------------------------------------------------------------------- */
+  --radius-sm:    8px;
+  --radius-md:    12px;
+  --radius-lg:    18px;
+  --radius-xl:    22px;
+  --radius-pill:  999px;
+  --radius-full:  50%;
+
+  /* Per-component radius scale (from spec) */
+  --radius-card-lg:    20px;
+  --radius-card:       16px;
+  --radius-button:     11px;
+  --radius-input:      11px;
+  --radius-badge:      999px;
+
+  /* -------------------------------------------------------------------------
+     Spacing — 4px base scale
+     ------------------------------------------------------------------------- */
+  --space-1:   4px;
+  --space-2:   8px;
+  --space-3:   12px;
+  --space-4:   16px;
+  --space-5:   20px;
+  --space-6:   24px;
+  --space-8:   32px;
+  --space-10:  40px;
+  --space-12:  48px;
+  --space-16:  64px;
+  --space-20:  80px;
+  --space-24:  96px;
+
+  /* -------------------------------------------------------------------------
+     Typography — Inter (geometric, clean, slightly lightweight)
+     ------------------------------------------------------------------------- */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'SF Mono', 'JetBrains Mono', 'Fira Code', Menlo, monospace;
+
+  --fs-xs:    12px;
+  --fs-sm:    13px;
+  --fs-base:  15px;
+  --fs-md:    16px;
+  --fs-lg:    18px;
+  --fs-xl:    22px;
+  --fs-2xl:   28px;
+  --fs-3xl:   36px;
+  --fs-4xl:   48px;
+
+  --fw-light:     300;
+  --fw-regular:   400;
+  --fw-medium:    500;
+  --fw-semibold:  600;
+  --fw-bold:      700;
+
+  --lh-tight:     1.2;
+  --lh-snug:      1.35;
+  --lh-normal:    1.5;
+  --lh-relaxed:   1.7;
+
+  --letter-tight:   -0.02em;
+  --letter-normal:  0;
+  --letter-wide:    0.02em;
+  --letter-wider:   0.08em;
+
+  /* -------------------------------------------------------------------------
+     Motion
+     ------------------------------------------------------------------------- */
+  --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --duration-fast:    120ms;
+  --duration-base:    200ms;
+  --duration-slow:    320ms;
+  --duration-slower:  480ms;
+
+  /* -------------------------------------------------------------------------
+     Layout
+     ------------------------------------------------------------------------- */
+  --container-max:  1200px;
+  --container-narrow: 720px;
+  --navbar-height:  68px;
+
+  /* -------------------------------------------------------------------------
+     Z-index scale
+     ------------------------------------------------------------------------- */
+  --z-base:    0;
+  --z-raised:  10;
+  --z-nav:     50;
+  --z-overlay: 80;
+  --z-modal:   100;
+  --z-toast:   120;
+}

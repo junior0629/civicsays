@@ -1,0 +1,20 @@
+# Local env (never commit credentials)
+env.local.js
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Node (only used by scripts/ folder, not the app)
+node_modules/
+npm-debug.log*
+
+# Misc
+*.log
+.env
+.env.local
+
+# Debug / scratch files (not part of the app)
+diagnose-*.html

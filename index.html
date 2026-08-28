@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#111111" />
+  <title>CivicSays — Your Voice Will Be Heard</title>
+  <meta name="description" content="A civic engagement platform connecting residents with their local government. Submit requests, track progress, and communicate with officials — all in one place." />
+
+  <meta property="og:title" content="CivicSays — Your Voice Will Be Heard" />
+  <meta property="og:description" content="Submit requests, track progress, and communicate with your local government." />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" />
+
+  <link rel="stylesheet" href="style/tokens.css" />
+  <link rel="stylesheet" href="style/base.css" />
+  <link rel="stylesheet" href="style/components.css" />
+  <link rel="stylesheet" href="style/layout.css" />
+
+  <link rel="icon" type="image/png" href="Logo.png" />
+  <link rel="apple-touch-icon" href="Logo.png" />
+
+  <script src="js/config.js"></script>
+  <script src="env-loader.js"></script>
+</head>
+<body>
+  <a href="#main" class="visually-hidden">Skip to content</a>
+
+  <!-- Navbar -->
+  <nav class="navbar" id="navbar" aria-label="Primary">
+    <div class="container">
+      <div class="navbar-inner">
+        <a class="navbar-brand" href="index.html" aria-label="CivicSays home">
+          <img src="Logo.png" alt="" />
+          <span>CivicSays</span>
+        </a>
+        <div class="navbar-links">
+          <a class="navbar-link is-active" href="index.html">Home</a>
+          <a class="navbar-link" href="#features">Features</a>
+          <a class="navbar-link" href="#how">How it works</a>
+          <a class="navbar-link" href="#faq">FAQ</a>
+        </div>
+        <div class="navbar-actions">
+          <a class="btn btn-ghost btn-sm" href="login.html">Log in</a>
+          <a class="btn btn-primary btn-sm" href="submit.html">
+            <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-ticket"></use></svg>
+            Submit a Ticket
+          </a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main id="main" class="page">
+    <div class="page-main" style="padding-top: 0;">
+      <!-- Hero -->
+      <section class="hero">
+        <div class="container">
+          <div class="hero-grid">
+            <div class="fade-in">
+              <span class="hero-eyebrow">
+                <svg class="icon" aria-hidden="true" style="width:14px;height:14px"><use href="assets/icons.svg#i-sparkles"></use></svg>
+                Your voice will be heard
+              </span>
+              <h1 class="hero-title">
+                The bridge between<br/>
+                <span class="accent">residents and government.</span>
+              </h1>
+              <p class="hero-description">
+                Submit a request or complaint, get a unique tracking ID, and watch your issue move through the system in real time. No phone trees, no paperwork, no black holes.
+              </p>
+              <div class="hero-actions">
+                <a class="btn btn-primary btn-lg" href="submit.html">
+                  <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-ticket"></use></svg>
+                  Submit a Ticket
+                </a>
+                <a class="btn btn-secondary btn-lg" href="track.html">
+                  <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-search"></use></svg>
+                  Track a Ticket
+                </a>
+              </div>
+              <div class="hero-trust">
+                <div class="hero-trust-item">
+                  <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-check"></use></svg>
+                  No account required
+                </div>
+                <div class="hero-trust-item">
+                  <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-check"></use></svg>
+                  Always free
+                </div>
+                <div class="hero-trust-item accent">
+                  <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-shield"></use></svg>
+                  Open &amp; transparent
+                </div>
+              </div>
+            </div>
+
+            <div class="hero-visual fade-in">
+              <div class="ticket-preview">
+                <div class="ticket-preview-floater top-right">
+                  <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-check-circle"></use></svg>
+                  Live updates
+                </div>
+                <div class="ticket-preview-floater bottom-left">
+                  <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-message"></use></svg>
+                  Two-way chat
+                </div>
+
+                <div class="glass-card ticket-preview-main">
+                  <div class="ticket-preview-header">
+                    <div>
+                      <div class="ticket-preview-id">CIV-AB3K9X</div>
+                      <div style="margin-top:4px;">
+                        <span class="badge badge-process">
+                          <span class="dot"></span>
+                          In Process
+                        </span>
+                      </div>
+                    </div>
+                    <div class="avatar accent">JM</div>
+                  </div>
+                  <div class="ticket-preview-body">
+                    <div class="ticket-preview-title">Streetlight out on Oak Avenue &amp; 4th</div>
+                    <div class="ticket-preview-meta">
+                      <span>Infrastructure</span>
+                      <span class="dot"></span>
+                      <span>2 days ago</span>
+                    </div>
+                    <div class="ticket-preview-timeline">
+                      <div class="timeline-step is-done">
+                        <div class="timeline-step-marker">
+                          <div class="timeline-step-dot"></div>
+                          <div class="timeline-step-line"></div>
+                        </div>
+                        <div class="timeline-step-content">
+                          <div class="timeline-step-label">Submitted</div>
+                          <div class="timeline-step-time">Mon, 9:14 AM</div>
+                        </div>
+                      </div>
+                      <div class="timeline-step is-done">
+                        <div class="timeline-step-marker">
+                          <div class="timeline-step-dot"></div>
+                          <div class="timeline-step-line"></div>
+                        </div>
+                        <div class="timeline-step-content">
+                          <div class="timeline-step-label">Acknowledged by Public Works</div>
+                          <div class="timeline-step-time">Mon, 2:08 PM</div>
+                        </div>
+                      </div>
+                      <div class="timeline-step is-active">
+                        <div class="timeline-step-marker">
+                          <div class="timeline-step-dot"></div>
+                        </div>
+                        <div class="timeline-step-content">
+                          <div class="timeline-step-label">Crew dispatched — In Process</div>
+                          <div class="timeline-step-time">Today, 8:30 AM</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Stats strip -->
+          <div class="stats-strip">
+            <div class="stat-item">
+              <div class="stat-item-value accent">3 min</div>
+              <div class="stat-item-label">Avg. submit time</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-item-value">100%</div>
+              <div class="stat-item-label">Tickets tracked</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-item-value">24/7</div>
+              <div class="stat-item-label">Available</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-item-value">$0</div>
+              <div class="stat-item-label">Cost to residents</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Features — alternating rows -->
+      <section class="section" id="features">
+        <div class="container">
+          <div class="section-header">
+            <span class="section-eyebrow">What you can do</span>
+            <h2 class="section-title">Built for the way<br/>civic issues actually get solved</h2>
+            <p class="section-subtitle">A complete loop — from the moment you file a report to the moment the issue is closed. Every step is recorded, every action has a name.</p>
+          </div>
+
+          <div>
+            <div class="feature-row">
+              <div class="feature-content">
+                <div class="feature-eyebrow">For residents</div>
+                <h3 class="feature-heading">File a request in under three minutes.</h3>
+                <p class="feature-description">
+                  A short form, a photo if you have one, and a unique tracking ID you can save. No accounts, no email verification, no waiting on hold.
+                </p>
+                <ul class="feature-list">
+                  <li>
+                    <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-check"></use></svg>
+                    Eight fields. Most are optional.
+                  </li>
+                  <li>
+                    <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-check"></use></svg>
+                    Add a photo or video link to give context.
+                  </li>
+                  <li>
+                    <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-check"></use></svg>
+                    Get your tracking ID instantly. Keep it forever.
+                  </li>
+                </ul>
+              </div>
+              <div class="feature-visual">
+                <div class="glass-card" style="width:100%; max-width:380px;">
+                  <div class="ticket-preview-header" style="border-bottom:none; padding-bottom:0;">
+                    <div>
+                      <div class="ticket-preview-id">CIV-H7K2P9</div>
+                      <div style="margin-top:6px;">
+                        <span class="badge badge-pending">
+                          <span class="dot"></span>
+                          Pending
+                        </span>
+                      </div>
+                    </div>
+                    <svg class="icon" aria-hidden="true" style="color:var(--text-muted); width:18px; height:18px;"><use href="assets/icons.svg#i-sparkles"></use></svg>
+                  </div>
+                  <div class="ticket-preview-body" style="padding-top:var(--space-3);">
+                    <div class="ticket-preview-title">Pothole on Main Street near the library</div>
+                    <div class="ticket-preview-meta">
+                      <span>Roads</span>
+                      <span class="dot"></span>
+                      <span>Just submitted</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="feature-row">
+              <div class="feature-content">
+                <div class="feature-eyebrow">Track everything</div>
+                <h3 class="feature-heading">Every status change is logged, with a name attached.</h3>
+                <p class="feature-description">
+                  Come back any time with your tracking ID. See exactly where your ticket is in the pipeline, who handled it, and when each step happened.
+                </p>
+                <ul class="feature-list">
+                  <li>
+                    <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-check"></use></svg>
+                    Full audit trail. No mysterious changes.
+                  </li>
+                  <li>
+                    <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-check"></use></svg>
+                    Comment back. Officials respond in the same thread.
+                  </li>
+                  <li>
+                    <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-check"></use></svg>
+                    Reopen if a fix didn't actually work.
+                  </li>
+                </ul>
+              </div>
+              <div class="feature-visual">
+                <div class="glass-card" style="width:100%; max-width:380px;">
+                  <div class="ticket-preview-timeline" style="border-top:none; padding-top:0;">
+                    <div class="timeline-step is-done">
+                      <div class="timeline-step-marker">
+                        <div class="timeline-step-dot"></div>
+                        <div class="timeline-step-line"></div>
+                      </div>
+                      <div class="timeline-step-content">
+                        <div class="timeline-step-label">Pending</div>
+                        <div class="timeline-step-time">Mon 9:14 AM</div>
+                      </div>
+                    </div>
+                    <div class="timeline-step is-done">
+                      <div class="timeline-step-marker">
+                        <div class="timeline-step-dot"></div>
+                        <div class="timeline-step-line"></div>
+                      </div>
+                      <div class="timeline-step-content">
+                        <div class="timeline-step-label">Acknowledged</div>
+                        <div class="timeline-step-time">Mon 11:42 AM</div>
+                      </div>
+                    </div>
+                    <div class="timeline-step is-done">
+                      <div class="timeline-step-marker">
+                        <div class="timeline-step-dot"></div>
+                        <div class="timeline-step-line"></div>
+                      </div>
+                      <div class="timeline-step-content">
+                        <div class="timeline-step-label">In Process — assigned to Crew 4</div>
+                        <div class="timeline-step-time">Tue 8:00 AM</div>
+                      </div>
+                    </div>
+                    <div class="timeline-step">
+                      <div class="timeline-step-marker">
+                        <div class="timeline-step-dot"></div>
+                      </div>
+                      <div class="timeline-step-content">
+                        <div class="timeline-step-label" style="color:var(--text-muted);">Solved — pending verification</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="feature-row">
+              <div class="feature-content">
+                <div class="feature-eyebrow">Live chat</div>
+                <h3 class="feature-heading">When a ticket doesn't fit, ask a question.</h3>
+                <p class="feature-description">
+                  Not everything fits in a structured form. Open a live chat with an official for quick questions, scheduling, or follow-ups. Get an answer in real time.
+                </p>
+                <ul class="feature-list">
+                  <li>
+                    <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-check"></use></svg>
+                    No appointment needed.
+                  </li>
+                  <li>
+                    <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-check"></use></svg>
+                    Both sides see messages the moment they arrive.
+                  </li>
+                  <li>
+                    <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-check"></use></svg>
+                    Conversation closes cleanly when resolved.
+                  </li>
+                </ul>
+              </div>
+              <div class="feature-visual">
+                <div class="glass-card" style="width:100%; max-width:380px; padding:var(--space-4);">
+                  <div class="stack gap-3">
+                    <div class="chat-bubble incoming">Hi! My trash didn't get picked up on Tuesday. Is there a holiday schedule I should know about?</div>
+                    <div class="chat-bubble outgoing">Hi Maria — yes, this week is shifted by one day for the holiday. Wednesday pickup moves to Friday.</div>
+                    <div class="chat-bubble incoming">Got it, thank you!</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- How it works — timeline -->
+      <section class="section" id="how">
+        <div class="container">
+          <div class="section-header">
+            <span class="section-eyebrow">How it works</span>
+            <h2 class="section-title">From a problem to a closed ticket<br/>in three steps.</h2>
+          </div>
+
+          <div class="timeline">
+            <div class="timeline-item">
+              <div class="timeline-item-marker">
+                <div class="timeline-item-number">1</div>
+              </div>
+              <div class="timeline-item-content">
+                <h3 class="timeline-item-title">Submit your request</h3>
+                <p class="timeline-item-text">
+                  Tell us what's happening. Add a photo or video link if it helps explain the issue. Pick "Request" for general services or "Complaint" if something's broken or wrong.
+                </p>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-item-marker">
+                <div class="timeline-item-number">2</div>
+              </div>
+              <div class="timeline-item-content">
+                <h3 class="timeline-item-title">Get a tracking ID</h3>
+                <p class="timeline-item-text">
+                  We'll give you a unique code like <code style="color:var(--accent); font-family:var(--font-mono);">CIV-AB3K9X</code>. Save it. That's how you'll check status, add comments, and continue the conversation.
+                </p>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-item-marker">
+                <div class="timeline-item-number">3</div>
+              </div>
+              <div class="timeline-item-content">
+                <h3 class="timeline-item-title">Track and respond</h3>
+                <p class="timeline-item-text">
+                  Come back any time to see progress. Officials will post updates; you can add your own comments. When the issue is resolved, the ticket closes — and the full record stays accessible.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Testimonial / quote -->
+      <section class="section tight">
+        <div class="container">
+          <div class="quote-block">
+            <div class="quote-mark">
+              <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-message"></use></svg>
+            </div>
+            <p class="quote-text">
+              "We used to lose track of resident reports in email chains. Now every request lives in one place, with one ID, and the public can see exactly where it stands. It changed how the office works."
+            </p>
+            <div class="quote-attribution">
+              <div class="avatar lg accent">MR</div>
+              <div class="quote-attribution-text">
+                <span class="quote-attribution-name">Maria Reyes</span>
+                <span class="quote-attribution-role">City Clerk — Public Works Office</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- FAQ -->
+      <section class="section" id="faq">
+        <div class="container">
+          <div class="section-header">
+            <span class="section-eyebrow">Common questions</span>
+            <h2 class="section-title">Before you file.</h2>
+          </div>
+
+          <div class="faq">
+            <details class="faq-item">
+              <summary class="faq-question">
+                <span class="faq-question-text">Is CivicSays really free?</span>
+                <span class="faq-question-icon">
+                  <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-x"></use></svg>
+                </span>
+              </summary>
+              <div class="faq-answer">
+                Yes — for residents, for governments, and forever. The platform runs on free-tier infrastructure and is open source. There is no paid tier, no upsell, and no "premium version."
+              </div>
+            </details>
+
+            <details class="faq-item">
+              <summary class="faq-question">
+                <span class="faq-question-text">Do I need to create an account?</span>
+                <span class="faq-question-icon">
+                  <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-x"></use></svg>
+                </span>
+              </summary>
+              <div class="faq-answer">
+                No. Residents stay anonymous. The only credentials you need to find and comment on your ticket are the tracking ID plus the name and phone number you used at submission. Officials do log in — they're a known, accountable group.
+              </div>
+            </details>
+
+            <details class="faq-item">
+              <summary class="faq-question">
+                <span class="faq-question-text">What if I lose my tracking ID?</span>
+                <span class="faq-question-icon">
+                  <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-x"></use></svg>
+                </span>
+              </summary>
+              <div class="faq-answer">
+                The ID is shown once at submission and you should save it. If you lose it, we can't look it up for you without an account system — so save it somewhere safe (a screenshot, a note on your phone, an email to yourself). It's short and easy to remember.
+              </div>
+            </details>
+
+            <details class="faq-item">
+              <summary class="faq-question">
+                <span class="faq-question-text">What types of issues can I report?</span>
+                <span class="faq-question-icon">
+                  <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-x"></use></svg>
+                </span>
+              </summary>
+              <div class="faq-answer">
+                Anything your local government handles: broken streetlights, potholes, trash pickup, water issues, permits, noise complaints, parks, public safety concerns, and general service requests. For emergencies, always call your local emergency number — CivicSays is not a replacement for 911 or equivalent.
+              </div>
+            </details>
+
+            <details class="faq-item">
+              <summary class="faq-question">
+                <span class="faq-question-text">How long until I hear back?</span>
+                <span class="faq-question-icon">
+                  <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-x"></use></svg>
+                </span>
+              </summary>
+              <div class="faq-answer">
+                That depends on the department and the issue. You'll see an acknowledgement from an official when the ticket is reviewed. You can comment any time to ask for an update, or use the "Ask a Question" live chat for faster responses on simple matters.
+              </div>
+            </details>
+
+            <details class="faq-item">
+              <summary class="faq-question">
+                <span class="faq-question-text">Is my personal information safe?</span>
+                <span class="faq-question-icon">
+                  <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-x"></use></svg>
+                </span>
+              </summary>
+              <div class="faq-answer">
+                Your contact info is shared with the officials who handle your ticket — that's how they reach you. The data lives in your own Supabase project (which your municipality controls), is protected by row-level security, and is never sold or shared with third parties.
+              </div>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <!-- CTA -->
+      <section class="cta-section">
+        <div class="container">
+          <div class="cta-card">
+            <h2 class="cta-title">Ready to be heard?</h2>
+            <p class="cta-description">Submit your first ticket in three minutes. No account, no cost, no catch.</p>
+            <div class="cta-actions">
+              <a class="btn btn-primary btn-lg" href="submit.html">
+                <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-ticket"></use></svg>
+                Submit a Ticket
+              </a>
+              <a class="btn btn-secondary btn-lg" href="track.html">
+                <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-search"></use></svg>
+                Track a Ticket
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="container">
+        <div class="footer-grid">
+          <div>
+            <div class="footer-brand">
+              <img src="Logo.png" alt="" />
+              <span class="footer-brand-name">CivicSays</span>
+            </div>
+            <p class="footer-tagline">A transparent bridge between residents and local government. Free, open, and accountable — forever.</p>
+          </div>
+          <div>
+            <h4 class="footer-heading">For Residents</h4>
+            <ul class="footer-list">
+              <li><a class="footer-link" href="submit.html">Submit a ticket</a></li>
+              <li><a class="footer-link" href="track.html">Track a ticket</a></li>
+              <li><a class="footer-link" href="#faq">FAQ</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4 class="footer-heading">Officials</h4>
+            <ul class="footer-list">
+              <li><a class="footer-link" href="login.html">Log in</a></li>
+              <li><a class="footer-link" href="admin.html">Dashboard</a></li>
+              <li><a class="footer-link" href="supabase/README.md">Setup guide</a></li>
+            </ul>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <span>© CivicSays — Your voice will be heard.</span>
+          <span>Built free. Stays free.</span>
+        </div>
+      </div>
+    </footer>
+  </main>
+
+  <script type="module" src="js/landing.js"></script>
+</body>
+</html>

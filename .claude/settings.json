@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(node scripts/probe.js)",
+      "PowerShell(node scripts/probe2.js)",
+      "PowerShell(node scripts/probe3.js)"
+    ]
+  }
+}
