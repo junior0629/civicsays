@@ -321,15 +321,21 @@ var validators = {
     if (!v) return null; // optional
     // SECURITY: allowlist of accepted video hosts. Prevents phishing links
     // like https://internal-server.local/admin being submitted and shown to
-    // officials in the ticket detail view.
+    // officials in the ticket detail view. Mirrors the server-side CHECK
+    // constraint in 0007_video_hosts.sql.
     var ALLOWED_VIDEO_HOSTS = [
       /^https?:\/\/(www\.)?youtube\.com\//i,
       /^https?:\/\/youtu\.be\//i,
       /^https?:\/\/(www\.)?vimeo\.com\//i,
+      /^https?:\/\/(www\.)?tiktok\.com\//i,
+      /^https?:\/\/drive\.google\.com\//i,
+      /^https?:\/\/(www\.)?facebook\.com\//i,
+      /^https?:\/\/fb\.watch\//i,
+      /^https?:\/\/(www\.)?(x|twitter)\.com\//i,
     ];
     if (!/^https?:\/\//i.test(v)) return 'Video link must start with http:// or https://';
     if (!ALLOWED_VIDEO_HOSTS.some(function (re) { return re.test(v); })) {
-      return 'Video link must be from YouTube or Vimeo.';
+      return 'Video link must be from YouTube, Vimeo, TikTok, Google Drive, Facebook, or X.';
     }
     return null;
   },

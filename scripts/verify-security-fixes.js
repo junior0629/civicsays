@@ -40,13 +40,33 @@ console.log('Phase 3 security fix verification\n');
         !/__CIVICSAYS_LAST_TICKET__/.test(js));
 }
 
-// --- Fix 4: Video allowlist ---
+// --- Fix 4: Video allowlist (6 hosts) ---
+// In js/submit.js each host is part of a regex literal like
+//   /^https?:\/\/(www\.)?youtube\.com\//i
+// To verify the host appears, we look for "<host>" + a literal backslash
+// + a literal dot + the TLD. The source bytes are 6-backslashes-in-source
+// long: 4 in the RegExp string (2 for the literal backslash, 1 for the
+// escape of the dot, 1 for the dot itself).
 {
   const js = fs.readFileSync('js/submit.js', 'utf8');
-  check('Fix 4: video allowlist (YouTube, Vimeo)',
-        /ALLOWED_VIDEO_HOSTS/.test(js) &&
-        /youtube\\\.com/.test(js) &&
-        /vimeo\\\.com/.test(js));
+  // Pattern shape: <host>\\\.com
+  // In source:   <host>\\\\\\.com  (6 backslashes before .com in the
+  //                                 RegExp constructor argument)
+  const patterns = [
+    'youtube\\\\\\.com',
+    'youtu\\\\\\.be',
+    'vimeo\\\\\\.com',
+    'tiktok\\\\\\.com',
+    'drive\\\\\\.google\\\\\\.com',
+    'facebook\\\\\\.com',
+    'fb\\\\\\.watch',
+    'twitter\\)\\\\\\.com', // (x|twitter) — the closing paren is between host and \.com
+  ];
+  const missing = patterns.filter(function (p) {
+    return !new RegExp(p).test(js);
+  });
+  check('Fix 4: video allowlist (YouTube, Vimeo, TikTok, Drive, FB, X)',
+        missing.length === 0, missing.length ? 'missing=' + missing.join(',') : 'all 8 hosts present');
 }
 
 // --- Fix 5: aria-describedby on inputs ---
@@ -109,6 +129,22 @@ console.log('Phase 3 security fix verification\n');
           'length=' + text.length);
   } else {
     check('Migration 0006 exists', false);
+  }
+}
+
+// --- Migration 0007 exists and covers all 6 video hosts ---
+{
+  const m = 'supabase/migrations/0007_video_hosts.sql';
+  if (fs.existsSync(m)) {
+    const text = fs.readFileSync(m, 'utf8');
+    const hosts = ['youtube', 'vimeo', 'tiktok', 'drive\\.google', 'facebook', 'twitter'];
+    const missing = hosts.filter(function (h) {
+      return !new RegExp(h).test(text);
+    });
+    check('Migration 0007 exists and covers 6 hosts',
+          missing.length === 0, missing.length ? 'missing=' + missing.join(',') : 'all 6 hosts present');
+  } else {
+    check('Migration 0007 exists', false);
   }
 }
 

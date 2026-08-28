@@ -178,9 +178,45 @@
               </label>
               <input class="input" type="url" id="f-video" name="video_link"
                      maxlength="500"
-                     placeholder="https://youtube.com/watch?v=…"
+                     placeholder="https://drive.google.com/file/d/…/view"
                      aria-describedby="hint-video err-video" />
-              <span class="field-hint" id="hint-video">YouTube or Vimeo URL. Must start with http:// or https://</span>
+              <span class="field-hint" id="hint-video">
+                Paste a link from YouTube, Vimeo, TikTok, Google Drive,
+                Facebook, or X. Tip:&nbsp;<strong>Google Drive is easiest</strong>
+                — upload your video there, share as "Anyone with the link",
+                then paste the share URL here.
+              </span>
+
+              <!--
+                Inline reveal: "How to share a Google Drive video".
+                Hidden by default. Toggled by clicking the trigger link.
+                Uses <details>/<summary> for free keyboard / no-JS support
+                (the JS just enhances it to look prettier).
+              -->
+              <details class="reveal" id="drive-help">
+                <summary class="reveal-trigger">
+                  <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-info"></use></svg>
+                  How to share a Google Drive video
+                </summary>
+                <ol class="reveal-steps">
+                  <li>
+                    Open <a href="https://drive.google.com" target="_blank" rel="noopener noreferrer">drive.google.com</a>
+                    and click <strong>New → File upload</strong>. Select your video.
+                  </li>
+                  <li>
+                    Once uploaded, <strong>right-click the file → Share</strong>.
+                    Under "General access", change it from
+                    <em>"Restricted"</em> to <strong>"Anyone with the link"</strong>,
+                    and set role to <strong>Viewer</strong>.
+                  </li>
+                  <li>
+                    Click <strong>Copy link</strong> and paste it in the field above.
+                    If the video shows "You need access" when officials view it,
+                    double-check step 2.
+                  </li>
+                </ol>
+              </details>
+
               <span class="field-error" id="err-video" role="alert"></span>
             </div>
 
