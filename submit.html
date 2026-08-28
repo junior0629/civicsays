@@ -22,15 +22,18 @@
   <!--
     Content Security Policy — defense-in-depth against XSS.
     - default-src 'self': only same-origin by default
-    - script-src: same-origin + Supabase; 'unsafe-inline' needed for the
-      modal-builder pattern in js/ui.js (creates elements via innerHTML in places)
-    - style-src: same-origin + Google Fonts; 'unsafe-inline' needed because
-      several inline style="..." attributes are used in js/submit.js
+    - script-src: same-origin + Supabase + jsDelivr (env-loader fetches the
+      Supabase SDK from cdn.jsdelivr.net). 'unsafe-inline' is required for
+      the modal-builder pattern in js/ui.js.
+    - style-src: same-origin + Google Fonts; 'unsafe-inline' required for
+      inline style="..." attributes used by js/submit.js
     - img-src: same-origin + data: (for photo previews) + Supabase (for attachments)
     - connect-src: Supabase REST + Realtime (wss://)
-    - frame-ancestors 'none': block all iframe embedding (anti-clickjacking)
+    - clickjacking: handled by X-Frame-Options: DENY from GitHub Pages
+      (the equivalent CSP directive is only effective as an HTTP header,
+      not via <meta>).
   -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://*.supabase.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-ancestors 'none'; base-uri 'self'; form-action 'self';" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://*.supabase.co https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co; base-uri 'self'; form-action 'self';" />
 
   <script src="js/config.js"></script>
   <script src="env-loader.js"></script>

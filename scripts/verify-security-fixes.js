@@ -65,14 +65,19 @@ console.log('Phase 3 security fix verification\n');
 }
 
 // --- Fix 7: CSP on all pages ---
+// Note: frame-ancestors is NOT expected — it only works as an HTTP header,
+// not via <meta>. GitHub Pages sends X-Frame-Options: DENY, which serves
+// the same purpose. We check for the rest of the policy and the jsDelivr
+// host (env-loader.js pulls the Supabase SDK from cdn.jsdelivr.net).
 {
   const pages = ['submit.html','index.html','admin.html','login.html','track.html','ticket.html','coming-soon.html'];
   for (const p of pages) {
     if (!fs.existsSync(p)) continue;
     const html = fs.readFileSync(p, 'utf8');
     const hasCsp = html.includes('Content-Security-Policy');
-    const hasFrameAncestors = html.includes('frame-ancestors');
-    check('Fix 7: CSP on ' + p, hasCsp && hasFrameAncestors);
+    const hasJsdelivr = html.includes('cdn.jsdelivr.net');
+    const noFrameAncestors = !html.includes('frame-ancestors');
+    check('Fix 7: CSP on ' + p, hasCsp && hasJsdelivr && noFrameAncestors);
   }
 }
 
