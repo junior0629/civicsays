@@ -101,9 +101,7 @@
                      inputmode="numeric" pattern="[0-9]{11}"
                      placeholder="09120880629"
                      aria-describedby="hint-phone err-phone" />
-              <span class="field-hint" id="hint-phone">
-                11 digits, Filipino mobile format (e.g.&nbsp;0912&nbsp;345&nbsp;6789)
-              </span>
+              <span class="field-hint" id="hint-phone"></span>
               <span class="field-error" id="err-phone" role="alert"></span>
             </div>
 
@@ -191,21 +189,19 @@
                 Photo <span class="text-muted" style="font-weight: var(--fw-regular); text-transform: none; letter-spacing: 0;">(optional, max 5 MB)</span>
               </span>
               <!--
-                Dropzone is now a <label for="f-photo">. Clicking it natively
-                opens the file picker, and the input is properly associated
-                with its label for screen readers. No more div+tabindex+role.
+                Dropzone is a <label for="f-photo">. The visible content
+                (icon, text, preview) is rendered by js/submit.js into a
+                .dropzone-content wrapper, leaving the <input> as a stable
+                child. This keeps the <label for="f-photo"> wired up so
+                click → file picker keeps working after remove + re-upload.
               -->
               <label class="dropzone" id="dropzone" for="f-photo"
                      aria-labelledby="photo-label hint-photo err-photo">
-                <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-image"></use></svg>
-                <div class="dropzone-text">
-                  <strong>Click to upload</strong> or drag a photo here
-                </div>
-                <div class="dropzone-hint" id="hint-photo">JPG, PNG, GIF, or WebP — up to 5 MB</div>
                 <input type="file" id="f-photo" name="photo"
                        accept="image/png,image/jpeg,image/gif,image/webp"
                        data-testid="photo-input" />
               </label>
+              <span class="field-hint" id="hint-photo">JPG, PNG, GIF, or WebP — up to 5 MB</span>
               <span class="field-error" id="err-photo" role="alert"></span>
             </div>
           </div>

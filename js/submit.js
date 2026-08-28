@@ -48,6 +48,7 @@ injectSprite();
 restoreDraft();
 wireAutoSave();
 wirePhotoDropzone();
+renderDropzone(); // build the empty state (icon + "Click to upload")
 wireDescriptionCounter();
 form.addEventListener('submit', onSubmit);
 
