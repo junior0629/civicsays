@@ -18,3 +18,7 @@ npm-debug.log*
 
 # Debug / scratch files (not part of the app)
 diagnose-*.html
+
+# Claude Code local settings — contains personal API keys + permissions
+# history. Never commit. Regenerate by running Claude Code.
+.claude/
