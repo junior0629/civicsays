@@ -48,7 +48,7 @@ node scripts/verify.js
 ```
 civicsays/
 ├── index.html                # landing page
-├── submit.html               # resident: submit a ticket
+├── submit.html               # resident: submit a ticket (Phase 3 ✓)
 ├── track.html                # resident: lookup by ID
 ├── ticket.html               # resident + official: ticket detail
 ├── login.html                # official: auth
@@ -66,7 +66,8 @@ civicsays/
 │   ├── format.js             # tracking ID, dates, status labels
 │   ├── ui.js                 # toast, modal, confirm
 │   ├── icons.js              # sprite injector
-│   ├── setup.js              # legacy first-run flow
+│   ├── setup.js              # legacy first-run flow (no longer reachable)
+│   ├── submit.js             # Phase 3 — ticket form: validation, photo upload, insert, success modal
 │   ├── landing.js            # landing page enhancements
 │   └── env-loader.js         # boot script (loaded by every page)
 │

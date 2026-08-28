@@ -51,12 +51,13 @@
 - [x] `js/ui.js` — `toast(msg, kind)`, `openModal(builder, opts)`, `confirmModal(opts)`, `openLightbox(src, alt)`, `copyToClipboard(text)`, `buttonBusy(btn)`
 
 ### 1C. Setup helpers
-- [x] `js/setup.js` — first-run UI: validates URL format, validates JWT, probes Supabase REST endpoint, saves to localStorage, redirects to `?return=...`
-- [x] `setup.html` — standalone setup page with toggle-visibility for the key field, "Why is this needed?" disclosure
+- [x] `js/setup.js` — first-run UI: validates URL format, validates JWT, probes Supabase REST endpoint, saves to localStorage, redirects to `?return=...` (legacy, no longer reachable now that `js/config.js` is committed)
+- [x] `setup.html` — standalone setup page (legacy, no longer reachable)
 
 ### 1D. Page integration
 - [x] `index.html` — added `<script src="env-loader.js">` to head
-- [ ] All other HTML pages (submit, track, ticket, login, admin) need `<script src="env-loader.js">` in head too — will be added as each page is built in later phases
+- [x] `submit.html` — has `<script src="env-loader.js">` (built in Phase 3)
+- [ ] Other HTML pages (track, ticket, login, admin) still need `<script src="env-loader.js">` in head — will be added as each page is built in later phases
 
 **Phase 1 demo**: from browser devtools, `await supabase.from('tickets').select()` returns empty array (RLS allows SELECT). Trying to INSERT without proper role fails. Can sign in as test official.
 
@@ -88,17 +89,41 @@
 
 ## Phase 3 — Submit Ticket (Resident)
 
-- [ ] `submit.html` — full form: name, phone, email, kind (request/complaint radio), location, title, description, photo upload (dropzone), video link (URL input)
-- [ ] `js/submit.js` — client-side validation (required, email format, phone digits-only max 11, URL format for video)
-- [ ] `js/ticket-id.js` — `generateTrackingId()` returns `CIV-` + 6 chars from `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`; `isValidTrackingId(id)` for reverse validation
-- [ ] Photo upload → `ticket-attachments` Storage bucket, store `attachment_path` + `attachment_mime`
-- [ ] Submit → insert row into `tickets` (RLS allows anon INSERT)
-- [ ] Success modal: show tracking ID, copy-to-clipboard, "Track this ticket" button
-- [ ] Error modal: validation errors (inline) + network errors (modal)
-- [ ] Loading state on submit button (`.spinner`)
-- [ ] Preserve form data in `sessionStorage` so accidental refresh doesn't lose input
+- [x] `submit.html` — full form: name, phone, email, kind (request/complaint radio), location, title, description, photo upload (dropzone), video link (URL input)
+- [x] `js/submit.js` — client-side validation (required, email format, phone digits-only 7–15, URL format for video) + photo upload + ticket INSERT + PK collision retry + success modal + draft preservation in sessionStorage
+- [x] `js/format.js` — `generateTrackingId()` returns `CIV-` + 6 chars from `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`; `isValidTrackingId(id)` for reverse validation (consolidated into `format.js`; no separate `ticket-id.js` needed)
+- [x] Photo upload → `ticket-attachments` Storage bucket at `_pending/<timestamp>_<name>`, then moved to `<CIV-ID>/<name>` after ticket insert; store `attachment_path` + `attachment_mime`
+- [x] Submit → insert row into `tickets` (RLS allows anon INSERT)
+- [x] Success modal: show tracking ID, copy-to-clipboard, "Track this ticket" button, "Submit another" button
+- [x] Error modal: validation errors (inline on each field) + network errors (toast via `friendlyError()`)
+- [x] Loading state on submit button (`buttonBusy()` from `ui.js`)
+- [x] Preserve form data in `sessionStorage` so accidental refresh doesn't lose input
+- [x] `scripts/verify-phase3.js` — 7/7 integration test: ID format, photo upload, ticket insert, anon read-back, PK collision detection, cleanup, page render
 
-**Phase 3 demo**: submit a real ticket → success modal shows `CIV-XXXXXX` → verify in Supabase `tickets` table → copy ID works.
+**Phase 3 demo**: `node scripts/verify-phase3.js` → 7/7 green. Open `http://127.0.0.1:8000/submit.html`, fill the form, attach a photo, submit → success modal shows `CIV-XXXXXX` with copy button + "Track this ticket" link → verify in Supabase `tickets` table.
+
+### Phase 3 security hardening (post-audit)
+
+After a security audit applying the lenses from `backend-architect.md`, `frontend-developer.md`, and `security-auditor.md`, the following fixes landed (all 9 frontend + 1 migration, verified by `scripts/verify-security-fixes.js`):
+
+- [x] **Fix 1**: `upsert: true` on the photo rename removed entirely (path now scoped to `<CIV-ID>/<name>` from the start)
+- [x] **Fix 2**: Photo Storage path is `<tracking-id>/<timestamp>_<safe-filename>` — never `_pending/`, never an unprefixed path
+- [x] **Fix 3**: `window.__CIVICSAYS_LAST_TICKET__` removed; success dispatches `CustomEvent('civicsays:ticket-submitted', { detail })` instead
+- [x] **Fix 4**: Video link allowlist (YouTube + Vimeo only) — no more `https://internal-server.local/...` phishing vectors
+- [x] **Fix 5**: `aria-describedby` on every input pointing to its hint + error spans; `aria-invalid` toggled by validation
+- [x] **Fix 6**: `aria-busy="true"` toggled on the submit button while in flight (for screen readers)
+- [x] **Fix 7**: Content-Security-Policy meta tag on all 7 HTML pages — `frame-ancestors 'none'` (anti-clickjacking), restricted `script-src`/`connect-src`/`img-src`
+- [x] **Fix 8**: Dropzone is now a real `<label for="f-photo">` instead of a `tabindex="0" role="button"` div — semantic + keyboard-correct
+- [x] **Fix 9**: `safeFilename()` strips leading dots — prevents `..png` path traversal
+- [x] **Migration `0006_security_hardening.sql`**: server-side enforcement
+  - `tickets.attachment_mime` CHECK constraint (image MIME whitelist)
+  - `tickets.title` minimum raised to 10 chars
+  - `tickets.description` minimum raised to 20 chars
+  - `tickets.video_link` CHECK (YouTube/Vimeo only)
+  - `tickets INSERT` policy requires `status = 'pending'` (no more pre-solved inserts)
+  - Storage upload policy requires path prefix `CIV-______/` or `_pending/`
+  - `image/svg+xml` removed from `allowed_mime_types` (XSS via SVG)
+- [x] `scripts/verify-security-fixes.js` — 19/19 checks green
 
 ---
 
@@ -304,7 +329,7 @@ These were scattered as I built; consolidating here so they don't get lost:
 | 1 — Supabase Bootstrap | ✅ Complete | Phase 1 done |
 | 2 — Landing Page | ✅ Complete | Redesigned + placeholders |
 | 1.5 — Manual Supabase Setup | ✅ Complete | 7/7 verify.js checks green; bucket + officials row + Realtime + RPC all live |
-| 3 — Submit Ticket | 🔲 Not started | — |
+| 3 — Submit Ticket | ✅ Complete | 7/7 verify-phase3.js checks green; submit.html + submit.js live |
 | 4 — Track + Detail | 🔲 Not started | — |
 | 5 — Official Auth | 🔲 Not started | — |
 | 6 — Admin Shell | 🔲 Not started | — |
