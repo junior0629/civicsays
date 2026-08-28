@@ -1551,6 +1551,21 @@
   text-align: center;
 }
 
+/*
+  Inner content area. We rebuild this on every render instead of wiping
+  the whole dropzone, because the <input type="file"> child must stay in
+  the DOM to keep the <label for="f-photo"> wired up. Without this wrapper,
+  removing a photo and trying to re-upload would silently fail.
+*/
+.dropzone-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+}
+
 .dropzone:hover,
 .dropzone.is-dragover {
   background: var(--glass-primary);

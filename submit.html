@@ -94,14 +94,16 @@
 
             <div class="field">
               <label class="field-label" for="f-phone">
-                Phone <span class="required">*</span>
+                Phone number <span class="required">*</span>
               </label>
               <input class="input" type="tel" id="f-phone" name="resident_phone"
-                     maxlength="15" autocomplete="tel" required
-                     inputmode="numeric" pattern="[0-9]*"
-                     placeholder="+63912345678"
+                     maxlength="11" autocomplete="tel" required
+                     inputmode="numeric" pattern="[0-9]{11}"
+                     placeholder="09120880629"
                      aria-describedby="hint-phone err-phone" />
-              <span class="field-hint" id="hint-phone">Digits only, 7–15 characters</span>
+              <span class="field-hint" id="hint-phone">
+                11 digits, Filipino mobile format (e.g.&nbsp;0912&nbsp;345&nbsp;6789)
+              </span>
               <span class="field-error" id="err-phone" role="alert"></span>
             </div>
 

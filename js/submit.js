@@ -182,23 +182,34 @@ function handlePhoto(file) {
 
 function renderDropzone() {
   if (!dropzone) return;
+  // IMPORTANT: do NOT touch dropzone.innerHTML — that would wipe the
+  // <input type="file"> child, leaving the <label> with a `for` attribute
+  // pointing to a nonexistent input. Subsequent re-uploads would silently
+  // fail. Instead, we keep a dedicated content area as a stable sibling
+  // and only swap its children.
+  var content = dropzone.querySelector('.dropzone-content');
+  if (!content) {
+    content = document.createElement('div');
+    content.className = 'dropzone-content';
+    dropzone.appendChild(content);
+  }
+  content.innerHTML = '';
+
   if (!pendingPhoto) {
     dropzone.classList.remove('is-uploaded');
-    dropzone.innerHTML = '';
-    dropzone.appendChild(icon('image'));
+    content.appendChild(icon('image'));
     var t1 = document.createElement('div');
     t1.className = 'dropzone-text';
     t1.innerHTML = '<strong>Click to upload</strong> or drag a photo here';
-    dropzone.appendChild(t1);
+    content.appendChild(t1);
     var t2 = document.createElement('div');
     t2.className = 'dropzone-hint';
     t2.textContent = 'JPG, PNG, GIF, or WebP — up to 5 MB';
-    dropzone.appendChild(t2);
+    content.appendChild(t2);
     return;
   }
 
   dropzone.classList.add('is-uploaded');
-  dropzone.innerHTML = '';
   var preview = document.createElement('div');
   preview.className = 'dropzone-preview';
 
@@ -233,6 +244,7 @@ function renderDropzone() {
   removeBtn.setAttribute('aria-label', 'Remove photo');
   removeBtn.appendChild(icon('x'));
   removeBtn.addEventListener('click', function (e) {
+    e.preventDefault();
     e.stopPropagation();
     pendingPhoto = null;
     if (photoInput) photoInput.value = '';
@@ -241,7 +253,7 @@ function renderDropzone() {
   });
   preview.appendChild(removeBtn);
 
-  dropzone.appendChild(preview);
+  content.appendChild(preview);
 }
 
 function humanBytes(n) {
@@ -262,11 +274,19 @@ var validators = {
   },
   phone: function (v) {
     if (!v || !v.trim()) return 'Please enter your phone number.';
+    // Filipino mobile format: 11 digits, starts with "09" (e.g. 0912 345 6789).
+    // The DB still permits 7–15 digits for non-mobile or future formats, but
+    // the submission form enforces 11 because the form is built for a
+    // Filipino audience. Visitors typing "+63..." or "63..." will get a
+    // clear inline error rather than silent truncation.
     var digits = v.replace(/\D/g, '');
-    if (digits.length < 7 || digits.length > 15) {
-      return 'Phone must be 7 to 15 digits.';
-    }
     if (!/^[0-9]+$/.test(digits)) return 'Phone must contain digits only.';
+    if (digits.length !== 11) {
+      return 'Phone must be exactly 11 digits (Filipino mobile, e.g. 0912 345 6789).';
+    }
+    if (!/^09/.test(digits)) {
+      return 'Filipino mobile numbers start with 09 (e.g. 0912 345 6789).';
+    }
     return null;
   },
   email: function (v) {
