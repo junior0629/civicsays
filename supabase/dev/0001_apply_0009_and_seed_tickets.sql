@@ -20,8 +20,17 @@
 -- =========================================================================
 
 -- -------------------------------------------------------------------------
--- 1. Apply migration 0009 (idempotent — CREATE OR REPLACE).
+-- 1. Apply migration 0009.
+--    NOT a pure CREATE OR REPLACE this time: changing the RETURNS TABLE
+--    of list_staff_tickets (dropping assigned_official_id which only
+--    exists on `inquiries`) requires dropping the old signature first.
+--    Postgres refuses to change an existing function's row type with
+--    CREATE OR REPLACE. If you haven't applied the old version yet
+--    (fresh project), the DROP will warn and continue.
 -- -------------------------------------------------------------------------
+
+drop function if exists public.list_staff_tickets(text, text, int);
+drop function if exists public.list_staff_inquiries(text, int);
 
 create or replace function public.list_staff_tickets(
   p_status_filter text default null,
