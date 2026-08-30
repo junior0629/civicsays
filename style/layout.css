@@ -127,7 +127,7 @@
   width: 100%;
   display: flex;
   align-items: center;        /* centers children by their visual middle */
-  justify-content: space-between;
+  justify-content: flex-start;  /* brand pins left; .navbar-links may auto-center */
   gap: var(--space-6);
   min-width: 0;               /* allow inner flex to shrink below its content size */
   line-height: 1;             /* tight line-box so center-align matches the glyph */
@@ -162,6 +162,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-1);
+  margin: 0 auto;             /* push the links group to the visual center */
 }
 
 .navbar-link {
