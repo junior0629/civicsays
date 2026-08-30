@@ -161,3 +161,35 @@ export function subscribeInquiryMessages(inquiryId, onChange) {
     if (channel) channel.unsubscribe();
   };
 }
+
+/**
+ * Subscribe to status history changes for a ticket. Fires on any change to
+ * ticket_status_history where ticket_id matches. Used by ticket.html to
+ * live-update the history list when an official changes a ticket's status.
+ *
+ * @param {string} ticketId
+ * @param {(payload: any) => void} onChange
+ * @returns {() => void}
+ */
+export function subscribeTicketStatusHistory(ticketId, onChange) {
+  let channel = null;
+  let cancelled = false;
+
+  (async () => {
+    const c = await getClient();
+    if (cancelled) return;
+    channel = c
+      .channel('ticket_status_history:' + ticketId)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: T.TICKET_STATUS_HISTORY, filter: 'ticket_id=eq.' + ticketId },
+        (payload) => onChange(payload)
+      )
+      .subscribe();
+  })();
+
+  return () => {
+    cancelled = true;
+    if (channel) channel.unsubscribe();
+  };
+}

@@ -11,6 +11,13 @@
       <path d="M14 6v12" stroke-dasharray="2 3"/>
     </symbol>
 
+    <symbol id="i-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1.2"/>
+      <rect x="14" y="3" width="7" height="7" rx="1.2"/>
+      <rect x="3" y="14" width="7" height="7" rx="1.2"/>
+      <rect x="14" y="14" width="7" height="7" rx="1.2"/>
+    </symbol>
+
     <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="11" cy="11" r="7"/>
       <path d="m20 20-3.5-3.5"/>

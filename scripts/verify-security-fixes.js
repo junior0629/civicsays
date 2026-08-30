@@ -148,5 +148,42 @@ console.log('Phase 3 security fix verification\n');
   }
 }
 
+// --- Phase 4: video embed helper in js/format.js ---
+{
+  const js = fs.readFileSync('js/format.js', 'utf8');
+  // Must be a named export (used by ticket.js).
+  check('Phase 4: videoEmbedUrl exported from format.js',
+        /export function videoEmbedUrl\b/.test(js));
+  check('Phase 4: isExternalVideoLink exported from format.js',
+        /export function isExternalVideoLink\b/.test(js));
+  // Must handle the four embed hosts.
+  const embedHosts = ['youtube\\.com', 'youtu\\.be', 'vimeo\\.com', 'tiktok\\.com', 'drive\\.google\\.com'];
+  const missing = embedHosts.filter(function (h) { return !new RegExp(h).test(js); });
+  check('Phase 4: videoEmbedUrl covers 4 embed hosts', missing.length === 0,
+        missing.length ? 'missing=' + missing.join(',') : 'YouTube, youtu.be, Vimeo, TikTok, Drive');
+}
+
+// --- Phase 4: track.html + ticket.html exist with the new structure ---
+{
+  const track = fs.readFileSync('track.html', 'utf8');
+  check('Phase 4: track.html has #track-form', /id="track-form"/.test(track));
+  check('Phase 4: track.html loads js/track.js (module)', /<script type="module" src="js\/track\.js">/.test(track));
+
+  const ticket = fs.readFileSync('ticket.html', 'utf8');
+  check('Phase 4: ticket.html has #ticket-region (skeleton mount point)',
+        /id="ticket-region"/.test(ticket));
+  check('Phase 4: ticket.html loads js/ticket.js (module)',
+        /<script type="module" src="js\/ticket\.js">/.test(ticket));
+  // CSP: must include frame-src for the four embed hosts.
+  check('Phase 4: ticket.html CSP allows YouTube + Vimeo + TikTok + Drive in frame-src',
+        /frame-src[^;]*youtube\.com/.test(ticket)
+        && /frame-src[^;]*vimeo\.com/.test(ticket)
+        && /frame-src[^;]*tiktok\.com/.test(ticket)
+        && /frame-src[^;]*drive\.google\.com/.test(ticket));
+  // CSP: img-src must allow Drive thumbnails.
+  check('Phase 4: ticket.html CSP allows googleusercontent thumbnails in img-src',
+        /img-src[^;]*googleusercontent\.com/.test(ticket));
+}
+
 console.log('\n' + (allPass ? '✓ All security fixes present' : '✗ Some fixes missing — see above'));
 process.exit(allPass ? 0 : 1);

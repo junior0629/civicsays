@@ -852,3 +852,880 @@
 .reveal-steps em { color: var(--accent); font-style: normal; }
 .reveal-steps a { color: var(--accent); text-decoration: underline; }
 .reveal-steps a:hover { color: var(--text-primary); }
+
+/* -------------------------------------------------------------------------
+   Ticket detail page (Phase 4)
+   ------------------------------------------------------------------------- */
+
+/* The big card that holds the tracking ID + status + category + last-updated.
+   4 equal cells distributed across the card width. Each cell centers its
+   content (label above value) so the layout reads as 4 balanced columns
+   rather than 4 left-pushed content blocks. */
+.ticket-header {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: var(--space-5);
+  padding: var(--space-5) var(--space-6);
+  background: var(--glass-deep);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-card-lg);
+  box-shadow: var(--shadow-md);
+}
+@media (max-width: 1000px) {
+  .ticket-header {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-5) var(--space-8);
+  }
+}
+@media (max-width: 560px) {
+  .ticket-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-4);
+  }
+}
+
+/* Vertical rhythm between the top-level sections on the ticket page.
+   Without this, the header, the body grid (Issue + Resident), and the
+   Comments card all stack flush against each other. */
+#ticket-region > * + * {
+  margin-top: var(--space-6);   /* 24px between every pair of top-level cards */
+}
+
+/* The main content wrapper holds header + status pipeline + body grid.
+   Same vertical rhythm applies inside it. */
+.ticket-main > * + * {
+  margin-top: var(--space-6);
+}
+
+.ticket-header-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;       /* center the label and value within the column */
+  gap: var(--space-2);
+  min-width: 0;
+  flex: 0 0 auto;            /* size to content, not stretch to fill */
+  text-align: center;
+}
+.ticket-header-col-label {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--text-muted);
+  letter-spacing: var(--letter-wider);
+  text-transform: uppercase;
+}
+.ticket-header-col-value {
+  display: flex;
+  align-items: center;
+  justify-content: center;   /* center icon + text within the value row */
+  gap: var(--space-2);
+  min-width: 0;
+}
+.ticket-header-col-value .icon {
+  width: 14px;
+  height: 14px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.ticket-header-col-value-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;       /* center the stacked date + sub-text */
+  min-width: 0;
+}
+.ticket-header-col-value-rel {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ticket-header-col-value-sub {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+.ticket-header-col-sub {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  margin-top: var(--space-1);
+  text-align: center;
+}
+
+.ticket-header-id {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  color: var(--accent);
+  letter-spacing: var(--letter-wide);
+}
+
+.ticket-header-id .icon {
+  width: 14px;
+  height: 14px;
+  color: var(--text-muted);
+}
+
+/* Backwards-compat: keep these classes usable (realtime swap uses them). */
+.ticket-header-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.ticket-header-meta {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.ticket-header-meta .icon { width: 14px; height: 14px; }
+.ticket-header-meta-rel {
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+}
+.ticket-header-meta-abs {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.ticket-header-meta-abs::before {
+  content: '·';
+  margin-right: var(--space-2);
+  color: var(--text-disabled);
+}
+
+/* Official-only status updater (select + update button) */
+.status-update {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-soft-2);
+  border-radius: var(--radius-md);
+}
+.status-update .select {
+  height: 32px;
+  font-size: var(--fs-xs);
+  background: var(--glass-primary);
+  min-width: 140px;
+}
+.status-update .btn { height: 32px; padding: 0 var(--space-3); font-size: var(--fs-xs); }
+
+/* -------------------------------------------------------------------------
+   Top-level layout — Resident panel on top, then main content below.
+   The main content holds the header, status pipeline, and body grid.
+   Both are full-width so neither card ever gets squeezed.
+   ------------------------------------------------------------------------- */
+.ticket-top {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  /* The "side" feel of the resident panel is preserved by its left
+     border accent. Stacking vertically (instead of a 2-col grid) means
+     the main content (header + pipeline + body grid) always gets the
+     full container width — no truncation, no squishing — and the
+     resident panel has the full container width too, so long emails
+     and addresses fit on a single line. */
+}
+
+/* Resident panel — full-width band on top of the main content. Visually
+   "feels like" a side card thanks to the left border accent and a
+   compact padding, but takes the full container width so long emails
+   and addresses fit on a single line. */
+.resident-panel {
+  padding: var(--space-5) var(--space-6);
+  border-left: 2px solid var(--border-strong);
+  border-top: 1px solid var(--border-default);
+  border-right: 1px solid var(--border-default);
+  border-bottom: 1px solid var(--border-default);
+  border-radius: var(--radius-card);
+}
+
+/* Rows inside the resident panel: [icon] [label] [value]. The panel
+   is full-width, so the value column has plenty of room — long emails
+   and addresses fit on a single line. On wide screens the 4 rows lay
+   out as a 2x2 grid (Name+Phone on top, Email+Location below) so the
+   card stays compact. On narrower screens the rows stack to 1 column.
+   If a value is still longer than the available space (very rare), it
+   wraps at word boundaries. */
+.resident-rows {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4) var(--space-8);
+  margin-top: var(--space-2);
+}
+@media (max-width: 700px) {
+  .resident-rows {
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+  }
+}
+.resident-row {
+  display: flex;
+  align-items: center;           /* center the icon against a single-line value */
+  gap: var(--space-3);
+  min-width: 0;
+}
+.resident-row-icon {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);             /* orange — matches the accent on the Issue card */
+  flex-shrink: 0;
+}
+.resident-row-icon .icon {
+  width: 14px;
+  height: 14px;
+}
+.resident-row-label {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  flex-shrink: 0;
+  /* Fixed width keeps the label column aligned across rows. Long enough
+     for "Location" (the longest label we have). */
+  width: 64px;
+}
+.resident-row-value {
+  font-size: var(--fs-sm);
+  color: var(--text-primary);
+  font-weight: var(--fw-medium);
+  flex: 1 1 auto;
+  min-width: 0;
+  /* `anywhere` is the safety net for a freakishly long unbreakable
+     token. With the panel full-width, this almost never triggers. */
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+/* -------------------------------------------------------------------------
+   Ticket body grid — Issue (left, primary) | Activity (right, supporting).
+   The issue card holds the ticket's main payload (title + description + optional
+   video), so it gets the wider column AND a stronger visual treatment. Cards
+   size to their own content height (align-items: start) so a short Activity
+   card doesn't stretch to match a longer Issue card.
+   ------------------------------------------------------------------------- */
+.ticket-body-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: var(--space-6);
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .ticket-body-grid { grid-template-columns: 1fr; }
+}
+
+.ticket-section {
+  background: var(--glass-primary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-card);
+  padding: var(--space-8);              /* 32px — gives content room to breathe */
+}
+
+/* Issue card — the centerpiece. Stronger treatment signals "this is what
+   matters" without making the card physically larger. */
+.ticket-section.is-primary {
+  background: var(--glass-deep);
+  border: 1px solid var(--border-strong);
+  border-left: 3px solid var(--accent);  /* orange accent rail on the left */
+  padding: var(--space-10);             /* 40px — a bit more room than peers */
+  box-shadow: var(--shadow-md);
+}
+
+.ticket-section-title {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--accent);                 /* orange tint — a clear visual anchor */
+  letter-spacing: var(--letter-wider);
+  text-transform: uppercase;
+  margin-bottom: var(--space-5);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border-default);
+  display: flex;                        /* lets the title-icon sit inline */
+  align-items: center;                  /* vertical center with the title text */
+  gap: var(--space-2);
+}
+.ticket-section-title-icon {
+  display: inline-flex;                 /* override the base `svg { display: block }` */
+  align-items: center;
+  justify-content: center;
+  color: currentColor;                  /* inherit the title's color */
+  flex-shrink: 0;
+}
+.ticket-section-title-icon .icon {
+  display: inline-block;                /* same override, scoped to the icon SVG */
+  width: 14px;
+  height: 14px;
+}
+
+/* Supporting sections (Resident, Comments) — quieter title.
+   Default is gray text + a gray icon. The Resident panel and the
+   Activity card opt in to orange titles (icon inherits via currentColor). */
+.ticket-section:not(.is-primary) .ticket-section-title {
+  color: var(--text-secondary);
+  border-bottom-color: var(--border-default);
+}
+.ticket-section:not(.is-primary) .ticket-section-title-icon {
+  color: currentColor;              /* inherit the title's color */
+}
+
+/* The Resident panel, Activity card, and Comments section titles go
+   orange — the icons follow because they inherit currentColor.
+   For the resident panel and activity card we chain two classes to
+   beat the supporting-section override. For comments we use the ID
+   (set in buildCommentsSection) which is the most specific selector. */
+.resident-panel.ticket-section .ticket-section-title,
+.ticket-section.activity-card .ticket-section-title,
+#comments-section .ticket-section-title {
+  color: var(--accent);
+}
+
+/* The Activity card title is small and short — orange is fine here and
+   echoes the row icons. The section labels inside (Recent activity /
+   Attachments) stay in the default text color so the title remains
+   the only orange anchor in the card. Comments stays gray because
+   it's a long block. */
+.ticket-section.activity-card .ticket-section-title {
+  color: var(--accent);
+}
+
+.ticket-title {
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+  letter-spacing: var(--letter-tight);
+  line-height: var(--lh-snug);
+  margin-bottom: var(--space-4);
+}
+
+/* Issue title — larger and tighter to the description, signaling "this is
+   the subject of the ticket." */
+.is-primary .ticket-title {
+  font-size: var(--fs-2xl);             /* 28px — a step up from peer titles */
+  margin-bottom: var(--space-5);
+}
+
+.ticket-description {
+  font-size: var(--fs-md);
+  line-height: var(--lh-relaxed);
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: anywhere;               /* long URLs/words don't break the layout */
+  max-width: 68ch;                       /* ~65–75 chars per line — readable */
+}
+
+/* Issue description — a notch larger and brighter to anchor the centerpiece. */
+.is-primary .ticket-description {
+  font-size: var(--fs-lg);              /* 18px */
+  color: var(--text-primary);            /* full white — easier to read at length */
+  max-width: 72ch;
+  line-height: var(--lh-relaxed);
+}
+
+/* Long descriptions start collapsed. The "Full view" button reveals the
+   rest. -webkit-line-clamp is well supported; if it ever fails, the
+   description just stays expanded (graceful degradation). */
+.is-primary .ticket-description.is-collapsed {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;                /* ~4 lines at --fs-lg / 72ch */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* Soft fade at the bottom of the truncated text — signals there's more
+     without a hard cut. */
+  -webkit-mask-image: linear-gradient(180deg, #000 70%, transparent 100%);
+          mask-image: linear-gradient(180deg, #000 70%, transparent 100%);
+}
+
+.description-full-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.description-full-view .description-toggle {
+  align-self: flex-start;               /* don't stretch the button across the card */
+  /* Subtle differentiation from regular ghost buttons — the chevron-
+     like right-arrow is implied by the label change ("Full view" /
+     "Show less") so we don't add an extra icon. */
+  font-weight: var(--fw-medium);
+  color: var(--accent);                 /* orange label — on-brand affordance */
+}
+.description-full-view .description-toggle:hover {
+  color: var(--accent);                 /* keep orange on hover (default btn-ghost would
+                                          dim/lighten) */
+  background: var(--accent-soft);       /* very soft tint on hover for affordance */
+  border-color: var(--accent-soft-2);
+}
+
+/* Photo (clickable) and video embed slots */
+.media-block {
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--border-default);
+}
+.media-block-label {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  color: var(--text-muted);
+  letter-spacing: var(--letter-wide);
+  text-transform: uppercase;
+  margin-bottom: var(--space-3);
+}
+
+/* Photo thumbnail: small by default so it doesn't dominate the card.
+   Clicking opens the lightbox for full inspection (mainly useful for
+   officials inspecting the evidence in detail). */
+.media-photo {
+  display: block;
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  cursor: zoom-in;
+  transition: border-color var(--duration-base) var(--ease-out),
+              transform var(--duration-base) var(--ease-out);
+}
+.media-photo:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.media-photo:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The button wrapper around the photo is purely a focus + a11y hook — strip
+   default button chrome so the image looks like a plain thumbnail. */
+.media-photo-button {
+  display: inline-block;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-md);
+  cursor: zoom-in;
+  line-height: 0;                        /* prevent baseline gap under <img> */
+}
+.media-photo-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.media-photo-hint {
+  margin-top: var(--space-2);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  letter-spacing: var(--letter-wide);
+}
+
+.media-photo-empty {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--glass-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+.media-photo-empty .icon { width: 14px; height: 14px; }
+
+/* Video embed: 16:9 to avoid CLS */
+.video-frame {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: var(--glass-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+.video-frame iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
+.video-link-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--glass-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-card);
+  text-decoration: none;
+  color: var(--text-primary);
+  transition: border-color var(--duration-base) var(--ease-out);
+}
+.video-link-card:hover { border-color: var(--accent); }
+.video-link-card .icon { width: 18px; height: 18px; color: var(--accent); flex-shrink: 0; }
+.video-link-card-text {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.video-link-card-text-main { font-size: var(--fs-sm); font-weight: var(--fw-medium); }
+.video-link-card-text-url {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Compact status history (timeline under comments) */
+.status-history {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--glass-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-card);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+.status-history-title {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--text-muted);
+  letter-spacing: var(--letter-wider);
+  text-transform: uppercase;
+  margin-bottom: var(--space-2);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.status-history-title .icon { width: 14px; height: 14px; }
+
+.status-history-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+.status-history-item .dot {
+  width: 6px; height: 6px; border-radius: var(--radius-full);
+  background: var(--text-disabled);
+  flex-shrink: 0;
+}
+.status-history-item .label { font-weight: var(--fw-medium); color: var(--text-primary); }
+.status-history-item .time  { color: var(--text-muted); margin-left: auto; }
+
+/* 404 / error state for ticket.html */
+.notfound {
+  text-align: center;
+  padding: var(--space-12) var(--space-6);
+  background: var(--glass-primary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-card-lg);
+}
+.notfound .icon {
+  width: 48px; height: 48px;
+  color: var(--text-disabled);
+  margin-bottom: var(--space-4);
+}
+.notfound-title {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+  margin-bottom: var(--space-2);
+  letter-spacing: var(--letter-tight);
+}
+.notfound-text {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  line-height: var(--lh-relaxed);
+  max-width: 420px;
+  margin: 0 auto var(--space-6);
+}
+
+/* -------------------------------------------------------------------------
+   Status pipeline — horizontal 4-step status indicator on the ticket page.
+   Submitted → Waiting to Accept → In Progress → Resolved. Icons sit in
+   32px circles connected by a 2px line that fills orange once a step is
+   done. Visual states: pending (dim), done (filled orange), active (glowing).
+   ------------------------------------------------------------------------- */
+.status-pipeline {
+  display: flex;
+  align-items: center;
+  gap: 0;                          /* connectors handle their own spacing */
+  padding: var(--space-6) var(--space-6);
+  background: var(--glass-deep);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-card-lg);
+  box-shadow: var(--shadow-md);
+}
+.status-pipeline-step {
+  flex: 1 1 0;                     /* share width evenly */
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;                    /* allow children to shrink */
+}
+.status-pipeline-step:last-child {
+  flex: 0 0 auto;                  /* last step doesn't grab extra space */
+}
+.status-pipeline-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  color: var(--text-disabled);
+  flex-shrink: 0;
+  transition: background var(--duration-base) var(--ease-out),
+              border-color var(--duration-base) var(--ease-out),
+              color var(--duration-base) var(--ease-out);
+}
+.status-pipeline-step.is-done .status-pipeline-icon {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+.status-pipeline-step.is-active .status-pipeline-icon {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft-2);
+}
+.status-pipeline-label {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.status-pipeline-step.is-done .status-pipeline-label {
+  color: var(--text-secondary);
+}
+.status-pipeline-step.is-active .status-pipeline-label {
+  color: var(--accent);
+}
+/* Sub-line under a pipeline label (e.g. filing time under "Submitted",
+   "On Hold" under "In Progress"). Smaller, dimmer, tabular numerals. */
+.status-pipeline-sub {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.status-pipeline-sub.is-hold {
+  color: var(--status-warning);
+}
+.status-pipeline-sub.is-pending {
+  /* Em-dash placeholder for steps that haven't happened yet. Hidden
+     from screen readers (it carries no information) and styled to
+     fade into the background so the column heights stay aligned. */
+  color: var(--text-disabled);
+  opacity: 0.5;
+}
+.status-pipeline-connector {
+  flex: 1 1 0;
+  height: 2px;
+  background: var(--border-default);
+  margin: 0 var(--space-3);
+  min-width: 16px;
+  transition: background var(--duration-base) var(--ease-out);
+}
+.status-pipeline-connector.is-done {
+  background: var(--accent);
+}
+.status-pipeline-step.is-active .status-pipeline-icon .icon,
+.status-pipeline-step.is-done .status-pipeline-icon .icon {
+  /* keep the inner SVG sized and inheriting currentColor */
+  width: 16px;
+  height: 16px;
+}
+
+/* Mobile: collapse the pipeline to a vertical list so the labels don't
+   truncate at small widths. */
+@media (max-width: 700px) {
+  .status-pipeline {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-3);
+    padding: var(--space-5);
+  }
+  .status-pipeline-step {
+    flex-direction: row;
+    width: 100%;
+  }
+  .status-pipeline-connector {
+    width: 2px;
+    height: 24px;
+    margin: 0 auto;
+    min-width: 0;
+  }
+  .status-pipeline-connector.is-done { background: var(--accent); }
+}
+
+/* -------------------------------------------------------------------------
+   Activity card — right column on the ticket page. A small digest of
+   timeline events + attachment links, so the right side doesn't read as
+   empty space when the Issue card is long.
+   ------------------------------------------------------------------------- */
+.activity-section-label {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--text-muted);          /* default — the card title is the only orange anchor */
+  letter-spacing: var(--letter-wider);
+  text-transform: uppercase;
+  margin-bottom: var(--space-3);
+}
+.activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.activity-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  min-width: 0;
+}
+.activity-row-icon {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.activity-row-icon .icon {
+  width: 14px;
+  height: 14px;
+}
+.activity-row-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.activity-row-time {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.activity-divider {
+  height: 1px;
+  background: var(--border-default);
+  margin: var(--space-5) 0;
+}
+.activity-empty {
+  font-size: var(--fs-sm);
+  color: var(--text-disabled);
+  font-style: italic;
+}
+.activity-attachment {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--glass-input);
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  text-decoration: none;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  transition: border-color var(--duration-base) var(--ease-out),
+              background var(--duration-base) var(--ease-out);
+}
+.activity-attachment:hover {
+  border-color: var(--border-hover);
+  background: var(--glass-hover);
+}
+.activity-attachment:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.activity-attachment-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.activity-attachment-icon {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.activity-attachment-icon .icon {
+  width: 16px;
+  height: 16px;
+}
+.activity-attachment-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Issue location row — read-only, sits below the attachments. Same
+   icon-square treatment as the activity rows so the card has one
+   consistent visual language. */
+.activity-location {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  font-size: var(--fs-sm);
+  color: var(--text-primary);
+  min-width: 0;
+}
+.activity-location-icon {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.activity-location-icon .icon {
+  width: 14px;
+  height: 14px;
+}
+.activity-location-text {
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+

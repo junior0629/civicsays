@@ -5,18 +5,30 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="dark" />
   <meta name="theme-color" content="#111111" />
-  <title>Setup in progress — CivicSays</title>
-  <meta name="description" content="This page is part of the next build phase." />
+  <title>Ticket — CivicSays</title>
+  <meta name="description" content="View ticket status, comments, and history." />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" />
 
   <link rel="stylesheet" href="style/tokens.css" />
   <link rel="stylesheet" href="style/base.css" />
   <link rel="stylesheet" href="style/components.css" />
   <link rel="stylesheet" href="style/layout.css" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://*.supabase.co https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co; base-uri 'self'; form-action 'self';" />
+
+  <link rel="icon" type="image/png" href="Logo.png" />
+
+  <!--
+    Content Security Policy — extended for video embeds:
+      - frame-src: allow YouTube, Vimeo, TikTok, and Google Drive (the four
+        platforms we embed directly). Facebook/X are rendered as clickable
+        <a> links and don't need frame-src.
+      - img-src:   allow YouTube thumbnail host (i.ytimg.com) and Google
+        user content (lh3.googleusercontent.com) for Drive preview thumbnails.
+    The rest of the policy mirrors submit.html.
+  -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://*.supabase.co https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://*.supabase.co https://i.ytimg.com https://*.googleusercontent.com; frame-src https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://www.tiktok.com https://drive.google.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co; base-uri 'self'; form-action 'self';" />
 
   <script src="js/config.js"></script>
   <script src="env-loader.js"></script>
@@ -31,55 +43,98 @@
           <img src="Logo.png" alt="" />
           <span>CivicSays</span>
         </a>
+        <div class="navbar-links">
+          <a class="navbar-link" href="index.html">Home</a>
+          <a class="navbar-link" href="index.html#features">Features</a>
+          <a class="navbar-link" href="index.html#how">How it works</a>
+          <a class="navbar-link" href="index.html#faq">FAQ</a>
+        </div>
         <div class="navbar-actions">
-          <a class="btn btn-ghost btn-sm" href="index.html">Back to home</a>
+          <a class="btn btn-ghost btn-sm" href="track.html">Track another</a>
+          <a class="btn btn-primary btn-sm" href="login.html">Log in</a>
         </div>
       </div>
     </div>
   </nav>
 
   <main id="main" class="page">
-    <div class="page-main" style="display:flex; align-items:center; justify-content:center;">
-      <div class="container narrow">
-        <div class="glass-card fade-in" style="padding:var(--space-12) var(--space-8); text-align:center;">
-          <div style="display:inline-flex; align-items:center; justify-content:center; width:64px; height:64px; background:var(--accent-soft); color:var(--accent); border-radius:var(--radius-full); margin-bottom:var(--space-6);">
-            <svg class="icon" aria-hidden="true" style="width:28px; height:28px;"><use href="assets/icons.svg#i-sparkles"></use></svg>
+    <div class="page-main">
+      <div class="container narrow" style="max-width: 920px;">
+
+        <!--
+          Top breadcrumb / back link. Always present so users have an
+          exit even if the ticket fails to load.
+        -->
+        <div style="margin-bottom: var(--space-4);">
+          <a href="track.html" style="font-size: var(--fs-sm); color: var(--text-muted); text-decoration: none; display: inline-flex; align-items: center; gap: var(--space-2);">
+            <svg class="icon" aria-hidden="true" style="width: 14px; height: 14px;"><use href="assets/icons.svg#i-arrow-left"></use></svg>
+            Back to tracking
+          </a>
+        </div>
+
+        <!--
+          Status region. The JS will replace the contents of #ticket-region
+          with either:
+            1) a skeleton while loading (rendered in HTML for SSR fallback)
+            2) the populated ticket detail
+            3) a 404 state
+            4) a network error state
+          Keeping this as a single region (rather than scattered slots)
+          means the JS only has one mount point to find.
+        -->
+        <div id="ticket-region" aria-live="polite" aria-busy="true">
+
+          <!-- Skeleton (visible until JS replaces it) -->
+          <div class="ticket-top" aria-hidden="true">
+            <!-- Resident panel placeholder (left) -->
+            <div class="resident-panel ticket-section">
+              <span class="skeleton" style="width: 140px; height: 12px; display: block;"></span>
+              <span class="skeleton" style="display: block; width: 100%; height: 12px; margin-top: var(--space-4);"></span>
+              <span class="skeleton" style="display: block; width: 80%; height: 12px; margin-top: var(--space-3);"></span>
+              <span class="skeleton" style="display: block; width: 90%; height: 12px; margin-top: var(--space-3);"></span>
+              <span class="skeleton" style="display: block; width: 100%; height: 12px; margin-top: var(--space-3);"></span>
+            </div>
+
+            <!-- Main content placeholder (right) -->
+            <div class="ticket-main">
+              <div class="ticket-header">
+                <span class="skeleton" style="width: 140px; height: 20px;"></span>
+                <span class="skeleton" style="width: 80px; height: 24px; border-radius: 999px;"></span>
+                <span class="skeleton" style="width: 60px; height: 24px; border-radius: 999px;"></span>
+                <span class="skeleton" style="width: 100px; height: 12px; margin-left: auto;"></span>
+              </div>
+              <div class="status-pipeline">
+                <span class="skeleton" style="display: block; width: 100%; height: 60px; border-radius: var(--radius-card-lg);"></span>
+              </div>
+              <div class="ticket-body-grid">
+                <div class="ticket-section">
+                  <span class="skeleton" style="width: 100px; height: 10px; margin-bottom: var(--space-3); display: block;"></span>
+                  <span class="skeleton skeleton-line" style="display: block; width: 100%;"></span>
+                  <span class="skeleton skeleton-line" style="display: block; width: 100%;"></span>
+                  <span class="skeleton skeleton-line" style="display: block; width: 80%;"></span>
+                  <span class="skeleton skeleton-line" style="display: block; width: 90%;"></span>
+                </div>
+                <div class="ticket-section">
+                  <span class="skeleton" style="width: 80px; height: 10px; margin-bottom: var(--space-3); display: block;"></span>
+                  <span class="skeleton" style="width: 200px; height: 18px; margin-bottom: var(--space-3); display: block;"></span>
+                  <span class="skeleton skeleton-line" style="display: block; width: 100%;"></span>
+                  <span class="skeleton skeleton-line" style="display: block; width: 100%;"></span>
+                  <span class="skeleton skeleton-line" style="display: block; width: 70%;"></span>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <h1 id="page-title" style="font-size:var(--fs-2xl); font-weight:var(--fw-semibold); margin-bottom:var(--space-3); letter-spacing:var(--letter-tight);">
-            Welcome
-          </h1>
-          <p id="page-message" style="font-size:var(--fs-md); color:var(--text-secondary); line-height:var(--lh-relaxed); max-width:480px; margin:0 auto var(--space-8);">
-            This page is part of the next build phase.
-          </p>
-
-          <div class="row gap-3" style="justify-content:center; flex-wrap:wrap;">
-            <a class="btn btn-secondary" href="index.html">Back to home</a>
+          <div class="ticket-section" style="margin-top: var(--space-6);" aria-hidden="true">
+            <span class="skeleton" style="width: 120px; height: 10px; margin-bottom: var(--space-3); display: block;"></span>
+            <span class="skeleton" style="width: 100%; height: 200px; border-radius: var(--radius-card); display: block;"></span>
           </div>
+
         </div>
       </div>
     </div>
   </main>
 
-  <script type="module">
-    import { injectSprite } from './js/icons.js';
-
-    injectSprite();
-
-    var path = window.location.pathname;
-    var filename = path.substring(path.lastIndexOf('/') + 1);
-
-    var titles = {
-      'submit.html': { title: 'Submit a ticket', message: 'This is the page where residents file a new request or complaint. The form, photo upload, and tracking ID generation are part of the next build phase.' },
-      'track.html':  { title: 'Track a ticket',  message: 'Look up any ticket by its tracking ID — see status, comments, and full history. Coming up after the resident submission flow ships.' },
-      'ticket.html': { title: 'Ticket detail',   message: 'Three-column view: ticket info, issue details, and the full comments + history thread. Built after submission and lookup are working.' },
-      'login.html':  { title: 'Official login',  message: 'Government officials sign in here. The admin side of CivicSays is built after the resident flows are done.' },
-      'admin.html':  { title: 'Admin dashboard', message: 'The management view: stats, ticket queue, inquiry panel, and live chat. This is the official side of CivicSays — built after resident flows are working.' },
-    };
-
-    var info = titles[filename] || { title: 'Coming up', message: 'This page is part of the next build phase.' };
-    document.getElementById('page-title').textContent = info.title;
-    document.getElementById('page-message').textContent = info.message;
-  </script>
+  <script type="module" src="js/ticket.js"></script>
 </body>
 </html>

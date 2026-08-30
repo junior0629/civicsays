@@ -53,14 +53,21 @@ export function formatDate(iso) {
   if (!iso) return '';
   var d = iso instanceof Date ? iso : new Date(iso);
   if (isNaN(d.getTime())) return '';
-  return d.toLocaleString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  // "08/29/26 6:44 PM" — compact, US-style, matches the ticket card mock.
+  // Built manually because toLocaleString doesn't expose a single
+  // "MM/DD/YY h:mm AM/PM" option.
+  var m = d.getMonth() + 1;
+  var day = d.getDate();
+  var yy = String(d.getFullYear()).slice(-2);
+  var h = d.getHours();
+  var min = String(d.getMinutes()).padStart(2, '0');
+  var ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12;
+  if (h === 0) h = 12;
+  return pad2(m) + '/' + pad2(day) + '/' + yy + ' ' + h + ':' + min + ' ' + ampm;
 }
+
+function pad2(n) { return String(n).padStart(2, '0'); }
 
 /**
  * Format an ISO timestamp as a short date.
@@ -238,4 +245,88 @@ export function youtubeEmbedUrl(url) {
     }
   } catch { /* invalid URL */ }
   return null;
+}
+
+// -------------------------------------------------------------------------
+// Video embeds (Phase 4) — multi-platform
+// -------------------------------------------------------------------------
+
+/**
+ * Derive the embed URL for a video link, or null if the host doesn't support
+ * embedding. Used by ticket.html to render an <iframe> directly.
+ *
+ * Supports: YouTube, Vimeo, TikTok, Google Drive.
+ * Facebook and X return null — those are shown as clickable links instead.
+ *
+ * @param {string} url
+ * @returns {string|null}
+ */
+export function videoEmbedUrl(url) {
+  if (!url) return null;
+  try {
+    var u = new URL(url);
+    var h = u.hostname.replace(/^www\./, '');
+
+    // YouTube: youtube.com/watch?v=...  or  youtu.be/<id>  or  /embed/<id>
+    if (h === 'youtube.com' || h === 'm.youtube.com') {
+      var vid = u.searchParams.get('v');
+      if (vid) return 'https://www.youtube.com/embed/' + vid;
+    }
+    if (h === 'youtu.be') {
+      var id = u.pathname.replace(/^\//, '').split('/')[0];
+      if (id) return 'https://www.youtube.com/embed/' + id;
+    }
+
+    // Vimeo: vimeo.com/<id>
+    if (h === 'vimeo.com') {
+      var segs = u.pathname.split('/').filter(Boolean);
+      var id2 = segs[0];
+      if (id2 && /^\d+$/.test(id2)) return 'https://player.vimeo.com/video/' + id2;
+    }
+
+    // TikTok: tiktok.com/@user/video/<id>
+    if (h === 'tiktok.com') {
+      var m = u.pathname.match(/\/video\/(\d+)/);
+      if (m) return 'https://www.tiktok.com/embed/v2/' + m[1];
+    }
+
+    // Google Drive: drive.google.com/file/d/<id>/view  →  /preview
+    if (h === 'drive.google.com') {
+      var m2 = u.pathname.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+      if (m2) return 'https://drive.google.com/file/d/' + m2[1] + '/preview';
+    }
+  } catch { /* invalid URL — not a recognized embed host */ }
+  return null;
+}
+
+/**
+ * Return the display URL for a video (used for clickable links to Facebook/X
+ * that we don't embed). Just returns the input as-is, or null.
+ *
+ * @param {string} url
+ * @returns {string|null}
+ */
+export function videoDisplayUrl(url) {
+  return url || null;
+}
+
+/**
+ * True when the URL belongs to a host we allow but don't embed. Used by
+ * the ticket detail page to decide between <iframe> and <a target="_blank">.
+ *
+ * @param {string} url
+ * @returns {boolean}
+ */
+export function isExternalVideoLink(url) {
+  if (!url) return false;
+  try {
+    var u = new URL(url);
+    var h = u.hostname.replace(/^www\./, '');
+    return h === 'facebook.com'
+        || h === 'fb.watch'
+        || h === 'x.com'
+        || h === 'twitter.com';
+  } catch {
+    return false;
+  }
 }

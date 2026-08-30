@@ -10,7 +10,7 @@
 
 import { getClient, friendlyError, unwrap, uploadAttachment } from './supabase.js';
 import { T, BUCKET_TICKET_ATTACHMENTS } from './supabase.js';
-import { generateTrackingId } from './format.js';
+import { generateTrackingId, formatDate } from './format.js';
 import { openModal, toast, copyToClipboard, buttonBusy } from './ui.js';
 import { injectSprite, icon } from './icons.js';
 
@@ -34,7 +34,7 @@ var descCount = document.getElementById('desc-count');
 var dropzone = document.getElementById('dropzone');
 var photoInput = document.getElementById('f-photo');
 
-var fields = ['name', 'phone', 'email', 'kind', 'location', 'title', 'description', 'video'];
+var fields = ['name', 'phone', 'email', 'address', 'kind', 'location', 'title', 'description', 'video'];
 var inputs = {};
 fields.forEach(function (f) {
   inputs[f] = document.getElementById('f-' + f);
@@ -110,6 +110,12 @@ function updateDescCount() {
 // -------------------------------------------------------------------------
 
 var pendingPhoto = null; // { file, name, size, mime, dataUrl }
+
+// True after a successful submit. Stays true until the user explicitly
+// resets the form via the "Submit another" button. Acts as a re-entry
+// guard: any subsequent submit (e.g. via a stray click that propagates
+// from the success modal's backdrop) is ignored.
+var posted = false;
 
 function wirePhotoDropzone() {
   if (!dropzone || !photoInput) return;
@@ -306,6 +312,12 @@ var validators = {
     if (v.length > 300) return 'Location is too long (max 300 characters).';
     return null;
   },
+  address: function (v) {
+    // Optional. The form lets residents skip it (some don't want to
+    // share their home address). We only enforce the length cap.
+    if (v && v.length > 300) return 'Address is too long (max 300 characters).';
+    return null;
+  },
   title: function (v) {
     if (!v || !v.trim()) return 'Please enter a title.';
     if (v.trim().length < 3) return 'Title must be at least 3 characters.';
@@ -390,6 +402,12 @@ fields.forEach(function (f) {
 
 async function onSubmit(e) {
   e.preventDefault();
+  // Re-entry guard: a previous submit already created a ticket. The
+  // form is "spent" — ignore any further submit events (including
+  // accidental taps on the form area after the success modal closes).
+  // The only way to submit again is to click "Submit another" in the
+  // success modal, which calls form.reset() and clears this flag.
+  if (posted) return;
   var firstInvalid = validateAll();
   if (firstInvalid) {
     firstInvalid.focus();
@@ -441,6 +459,7 @@ async function onSubmit(e) {
               resident_name: inputs.name.value.trim(),
               resident_phone: inputs.phone.value.replace(/\D/g, ''),
               resident_email: inputs.email.value.trim(),
+              resident_address: inputs.address.value.trim() || null,
               kind: inputs.kind.value,
               location: inputs.location.value.trim(),
               title: inputs.title.value.trim(),
@@ -479,6 +498,10 @@ async function onSubmit(e) {
     clearDraft();
     pendingPhoto = null;
     if (photoInput) photoInput.value = '';
+    // Lock the form against re-submit. The user can still click
+    // "Submit another" in the success modal, which calls form.reset()
+    // and clears this flag.
+    posted = true;
     showSuccessModal({
       id: row.id,
       createdAt: row.created_at,
@@ -564,6 +587,15 @@ function showSuccessModal(ticket) {
     idCard.appendChild(copyBtn);
     body.appendChild(idCard);
 
+    // Filed-on date — disambiguates among multiple tickets filed in the
+    // same week. Small, muted, centered under the ID card.
+    if (ticket.created_at) {
+      var filed = document.createElement('p');
+      filed.textContent = 'Filed on ' + formatDate(ticket.created_at);
+      filed.style.cssText = 'text-align:center; font-size:var(--fs-xs); color:var(--text-muted); margin: 0 auto var(--space-4); font-variant-numeric: tabular-nums;';
+      body.appendChild(filed);
+    }
+
     // What happens next
     var next = document.createElement('p');
     next.textContent = 'You can now track this ticket to see status updates and post comments.';
@@ -571,7 +603,13 @@ function showSuccessModal(ticket) {
     body.appendChild(next);
 
     ctx.setFooter(buildSuccessFooter(ticket, ctx));
-  }, { dismissible: true, size: 'sm' });
+    // Non-dismissible: this modal shows the tracking ID the resident needs
+    // to copy/follow up. A stray tap on the backdrop should NOT close it
+    // (the user would lose the ID and — worse — the same click used to
+    // bubble through to the form and re-fire submit). The footer has
+    // explicit "Submit another" / close buttons; those call ctx.close()
+    // directly. Escape and backdrop clicks are intentionally inert.
+  }, { dismissible: false, size: 'sm' });
 
   // Dispatch a custom event instead of setting a global. Only listeners
   // that explicitly subscribe will see the data — third-party scripts and
@@ -604,11 +642,13 @@ function buildSuccessFooter(ticket, ctx) {
   anotherBtn.addEventListener('click', function () {
     ctx.close();
     // Reset the form for a fresh entry AND clear the persisted draft so
-    // the next session doesn't see stale data.
+    // the next session doesn't see stale data. Clear the `posted` flag
+    // so the user can actually submit the new entry.
     form.reset();
     clearDraft();
     pendingPhoto = null;
     if (photoInput) photoInput.value = '';
+    posted = false;
     renderDropzone();
     updateDescCount();
     window.scrollTo({ top: 0, behavior: 'smooth' });

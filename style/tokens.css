@@ -52,7 +52,7 @@
      ------------------------------------------------------------------------- */
   --text-primary:     #F5F5F5;
   --text-secondary:   #B5B1AC;
-  --text-muted:       #77736E;
+  --text-muted:       #77736E;   /* before state — 4.01:1 on #111, fails AA */
   --text-disabled:    #4F4C48;
   --text-inverse:     #111111;
 

@@ -1303,7 +1303,7 @@
 }
 
 /* -------------------------------------------------------------------------
-   Comment / message thread
+   Comment / message thread — Phase 4 upgrade: avatar + role badge + accent rail
    ------------------------------------------------------------------------- */
 .thread {
   display: flex;
@@ -1313,26 +1313,66 @@
 
 .comment {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-4);
-  background: var(--glass-secondary);
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-6);
+  background: var(--glass-primary);
   border: 1px solid var(--border-default);
+  border-left: 3px solid var(--accent);
   border-radius: var(--radius-card);
+  transition: border-color var(--duration-base) var(--ease-out),
+              background var(--duration-base) var(--ease-out);
+}
+.comment:hover {
+  border-color: var(--border-hover);
+  border-left-color: var(--accent);
 }
 
 .comment.is-official {
   background: var(--accent-soft);
-  border-color: var(--accent-soft-2);
+  border-left-color: var(--accent);
 }
 
 .comment.is-system {
   background: transparent;
   border: 1px dashed var(--border-default);
+  border-left-width: 1px;
   font-size: var(--fs-xs);
   font-style: italic;
   color: var(--text-muted);
   text-align: center;
+  flex-direction: column;
+  gap: 0;
+}
+
+.comment-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--letter-wide);
+  flex-shrink: 0;
+  border: 1px solid var(--accent-soft-2);
+  user-select: none;
+}
+.comment.is-official .comment-avatar {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+.comment.is-system .comment-avatar { display: none; }
+
+.comment-body-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .comment-header {
@@ -1340,11 +1380,40 @@
   align-items: center;
   gap: var(--space-2);
   font-size: var(--fs-sm);
+  flex-wrap: wrap;
 }
 
 .comment-author {
   font-weight: var(--fw-semibold);
   color: var(--text-primary);
+}
+
+.comment-role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--letter-wide);
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+.comment-role-badge.is-resident {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid var(--accent-soft-2);
+}
+.comment-role-badge.is-official {
+  background: var(--accent);
+  color: var(--accent-text);
+  border: 1px solid var(--accent);
+}
+.comment-role-badge.is-system {
+  background: var(--glass-secondary);
+  color: var(--text-muted);
+  border: 1px solid var(--border-default);
 }
 
 .comment-time {
@@ -1359,6 +1428,7 @@
   color: var(--text-primary);
   white-space: pre-wrap;
   word-wrap: break-word;
+  overflow-wrap: anywhere;
 }
 
 .comment.is-system .comment-body {
@@ -1390,28 +1460,39 @@
   margin-bottom: var(--space-3);
 }
 
+/* -------------------------------------------------------------------------
+   KV list — key/value pairs used in ticket detail, admin panels, etc.
+   Two-column grid: label column (fixed-ish width) on the left, value on the
+   right. This is the universal pattern for property sheets / detail pages
+   (Apple HIG, Material, GOV.UK) — eyes can scan a vertical label column.
+   ------------------------------------------------------------------------- */
 .kv-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
+  display: grid;
+  grid-template-columns: minmax(0, 110px) minmax(0, 1fr);
+  column-gap: var(--space-5);
+  row-gap: var(--space-4);
 }
 
 .kv {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  display: contents;                     /* children participate in the grid */
 }
 
 .kv-key {
   font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
   color: var(--text-muted);
   letter-spacing: var(--letter-wide);
+  text-transform: uppercase;
+  align-self: start;
+  padding-top: 2px;                      /* optical baseline-align with value */
 }
 
 .kv-value {
   font-size: var(--fs-sm);
+  line-height: var(--lh-relaxed);
   color: var(--text-primary);
   word-wrap: break-word;
+  overflow-wrap: anywhere;
 }
 
 /* -------------------------------------------------------------------------
@@ -1566,6 +1647,21 @@
   width: 100%;
 }
 
+/*
+  Inner content area. We rebuild this on every render instead of wiping
+  the whole dropzone, because the <input type="file"> child must stay in
+  the DOM to keep the <label for="f-photo"> wired up. Without this wrapper,
+  removing a photo and trying to re-upload would silently fail.
+*/
+.dropzone-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+}
+
 .dropzone:hover,
 .dropzone.is-dragover {
   background: var(--glass-primary);
@@ -1576,6 +1672,30 @@
   width: 24px;
   height: 24px;
   color: var(--text-muted);
+}
+
+/*
+  Hide the file input inside the dropzone. The dropzone is a <label> that
+  forwards clicks to this input, so the input must remain in the DOM and
+  focusable (for keyboard activation) but visually hidden.
+  See WCAG-compatible "visually hidden" pattern.
+*/
+.dropzone input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* WCAG 2.2 2.4.11: clear, high-contrast focus on the dropzone itself */
+.dropzone:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
 }
 
 /*

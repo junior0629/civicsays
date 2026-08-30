@@ -115,6 +115,19 @@
                      aria-describedby="err-email" />
               <span class="field-error" id="err-email" role="alert"></span>
             </div>
+
+            <div class="field full">
+              <label class="field-label" for="f-address">
+                Home address
+                <span class="text-muted" style="font-weight: var(--fw-regular); text-transform: none; letter-spacing: 0;">(optional)</span>
+              </label>
+              <input class="input" type="text" id="f-address" name="resident_address"
+                     maxlength="300"
+                     placeholder="House number, street, barangay, city"
+                     autocomplete="street-address"
+                     aria-describedby="err-address" />
+              <span class="field-error" id="err-address" role="alert"></span>
+            </div>
           </div>
 
           <div class="divider"></div>
@@ -137,12 +150,11 @@
 
             <div class="field">
               <label class="field-label" for="f-location">
-                Location <span class="required">*</span>
+                Issue location <span class="required">*</span>
               </label>
               <input class="input" type="text" id="f-location" name="location"
                      maxlength="300" required
-                     placeholder="123 Main St, or a neighborhood name"
-                     autocomplete="street-address"
+                     autocomplete="off"
                      aria-describedby="err-location" />
               <span class="field-error" id="err-location" role="alert"></span>
             </div>
