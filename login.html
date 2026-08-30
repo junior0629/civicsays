@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="dark" />
   <meta name="theme-color" content="#111111" />
-  <title>Setup in progress — CivicSays</title>
-  <meta name="description" content="This page is part of the next build phase." />
+  <title>Sign in — CivicSays</title>
+  <meta name="description" content="Sign in to the CivicSays staff dashboard." />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -31,6 +31,9 @@
           <img src="Logo.png" alt="" />
           <span>CivicSays</span>
         </a>
+        <div class="navbar-links">
+          <a class="navbar-link" href="index.html">Home</a>
+        </div>
         <div class="navbar-actions">
           <a class="btn btn-ghost btn-sm" href="index.html">Back to home</a>
         </div>
@@ -39,47 +42,65 @@
   </nav>
 
   <main id="main" class="page">
-    <div class="page-main" style="display:flex; align-items:center; justify-content:center;">
+    <div class="page-main">
       <div class="container narrow">
-        <div class="glass-card fade-in" style="padding:var(--space-12) var(--space-8); text-align:center;">
-          <div style="display:inline-flex; align-items:center; justify-content:center; width:64px; height:64px; background:var(--accent-soft); color:var(--accent); border-radius:var(--radius-full); margin-bottom:var(--space-6);">
-            <svg class="icon" aria-hidden="true" style="width:28px; height:28px;"><use href="assets/icons.svg#i-sparkles"></use></svg>
-          </div>
-
-          <h1 id="page-title" style="font-size:var(--fs-2xl); font-weight:var(--fw-semibold); margin-bottom:var(--space-3); letter-spacing:var(--letter-tight);">
-            Welcome
+        <div class="stack gap-2" style="margin-bottom: var(--space-8); text-align: center;">
+          <span class="section-eyebrow">Staff</span>
+          <h1 style="font-size: clamp(1.75rem, 3vw, 2.25rem); font-weight: var(--fw-semibold); letter-spacing: -0.02em; line-height: 1.15;">
+            Sign in to the dashboard
           </h1>
-          <p id="page-message" style="font-size:var(--fs-md); color:var(--text-secondary); line-height:var(--lh-relaxed); max-width:480px; margin:0 auto var(--space-8);">
-            This page is part of the next build phase.
+          <p style="color: var(--text-secondary); max-width: 520px; margin: 0 auto; line-height: var(--lh-relaxed);">
+            Government staff only. Residents don't need an account — use
+            <a href="submit.html" style="color: var(--accent); text-decoration: underline; text-underline-offset: 2px;">Submit</a>
+            or
+            <a href="track.html" style="color: var(--accent); text-decoration: underline; text-underline-offset: 2px;">Track</a>
+            on the home page.
           </p>
-
-          <div class="row gap-3" style="justify-content:center; flex-wrap:wrap;">
-            <a class="btn btn-secondary" href="index.html">Back to home</a>
-          </div>
         </div>
+
+        <form id="login-form" class="glass-card" novalidate aria-labelledby="login-heading">
+          <div class="field">
+            <label class="field-label" for="f-email">
+              Email <span class="required">*</span>
+            </label>
+            <input class="input" type="email" id="f-email" name="email"
+                   required maxlength="200" autocomplete="username"
+                   placeholder="you@city.gov"
+                   aria-describedby="hint-email err-email" />
+            <span class="field-hint" id="hint-email">Use the email you were registered with.</span>
+            <span class="field-error" id="err-email" role="alert"></span>
+          </div>
+
+          <div class="field" style="margin-top: var(--space-4);">
+            <label class="field-label" for="f-password">
+              Password <span class="required">*</span>
+            </label>
+            <input class="input" type="password" id="f-password" name="password"
+                   required minlength="8" maxlength="200" autocomplete="current-password"
+                   placeholder="••••••••"
+                   aria-describedby="err-password" />
+            <span class="field-error" id="err-password" role="alert"></span>
+          </div>
+
+          <div id="form-error" class="form-error" role="alert" hidden
+               style="margin-top: var(--space-4); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); background: var(--status-error-soft, rgba(220, 80, 80, 0.12)); color: var(--status-error); font-size: var(--fs-sm); line-height: var(--lh-relaxed); border: 1px solid var(--status-error);"></div>
+
+          <div class="form-actions" style="margin-top: var(--space-6);">
+            <button type="submit" class="btn btn-primary" id="login-submit"
+                    data-busy-text="Signing in…">
+              Sign in
+            </button>
+            <a class="btn btn-ghost" href="index.html">Cancel</a>
+          </div>
+        </form>
+
+        <p style="margin-top: var(--space-6); text-align: center; color: var(--text-muted); font-size: var(--fs-sm);">
+          Trouble signing in? Contact your administrator.
+        </p>
       </div>
     </div>
   </main>
 
-  <script type="module">
-    import { injectSprite } from './js/icons.js';
-
-    injectSprite();
-
-    var path = window.location.pathname;
-    var filename = path.substring(path.lastIndexOf('/') + 1);
-
-    var titles = {
-      'submit.html': { title: 'Submit a ticket', message: 'This is the page where residents file a new request or complaint. The form, photo upload, and tracking ID generation are part of the next build phase.' },
-      'track.html':  { title: 'Track a ticket',  message: 'Look up any ticket by its tracking ID — see status, comments, and full history. Coming up after the resident submission flow ships.' },
-      'ticket.html': { title: 'Ticket detail',   message: 'Three-column view: ticket info, issue details, and the full comments + history thread. Built after submission and lookup are working.' },
-      'login.html':  { title: 'Official login',  message: 'Government officials sign in here. The admin side of CivicSays is built after the resident flows are done.' },
-      'admin.html':  { title: 'Admin dashboard', message: 'The management view: stats, ticket queue, inquiry panel, and live chat. This is the official side of CivicSays — built after resident flows are working.' },
-    };
-
-    var info = titles[filename] || { title: 'Coming up', message: 'This page is part of the next build phase.' };
-    document.getElementById('page-title').textContent = info.title;
-    document.getElementById('page-message').textContent = info.message;
-  </script>
+  <script type="module" src="js/login.js"></script>
 </body>
 </html>

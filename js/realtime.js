@@ -71,6 +71,38 @@ export function subscribeTicketComments(ticketId, onChange) {
 }
 
 /**
+ * Subscribe to the tickets list (used on the staff admin dashboard). Fires
+ * on any change to the tickets table — INSERT, UPDATE, or DELETE. Callers
+ * typically re-fetch their filtered view on each event; debouncing on
+ * the call side keeps the dashboard responsive during bursts.
+ *
+ * @param {(payload: any) => void} onChange
+ * @returns {() => void}  unsubscribe
+ */
+export function subscribeTickets(onChange) {
+  let channel = null;
+  let cancelled = false;
+
+  (async () => {
+    const c = await getClient();
+    if (cancelled) return;
+    channel = c
+      .channel('tickets:all')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: T.TICKETS },
+        (payload) => onChange(payload)
+      )
+      .subscribe();
+  })();
+
+  return () => {
+    cancelled = true;
+    if (channel) channel.unsubscribe();
+  };
+}
+
+/**
  * Subscribe to the inquiries list (used on admin dashboard). Fires on any
  * change to the inquiries table.
  *

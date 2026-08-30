@@ -5,17 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="dark" />
   <meta name="theme-color" content="#111111" />
-  <title>Setup in progress — CivicSays</title>
-  <meta name="description" content="This page is part of the next build phase." />
+  <title>Dashboard — CivicSays</title>
+  <meta name="description" content="CivicSays staff dashboard." />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" />
 
   <link rel="stylesheet" href="style/tokens.css" />
   <link rel="stylesheet" href="style/base.css" />
   <link rel="stylesheet" href="style/components.css" />
   <link rel="stylesheet" href="style/layout.css" />
+  <link rel="icon" type="image/png" href="Logo.png" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://*.supabase.co https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co; base-uri 'self'; form-action 'self';" />
 
   <script src="js/config.js"></script>
@@ -27,59 +28,86 @@
   <nav class="navbar" aria-label="Primary">
     <div class="container">
       <div class="navbar-inner">
-        <a class="navbar-brand" href="index.html" aria-label="CivicSays home">
+        <a class="navbar-brand" href="admin.html" aria-label="CivicSays dashboard">
           <img src="Logo.png" alt="" />
           <span>CivicSays</span>
         </a>
-        <div class="navbar-actions">
-          <a class="btn btn-ghost btn-sm" href="index.html">Back to home</a>
+        <div class="navbar-links">
+          <a class="navbar-link is-active" href="admin.html">Dashboard</a>
+        </div>
+        <div class="navbar-actions" id="nav-action" data-testid="nav-action">
+          <span class="text-muted" style="font-size: var(--fs-sm);">Loading…</span>
         </div>
       </div>
     </div>
   </nav>
 
   <main id="main" class="page">
-    <div class="page-main" style="display:flex; align-items:center; justify-content:center;">
-      <div class="container narrow">
-        <div class="glass-card fade-in" style="padding:var(--space-12) var(--space-8); text-align:center;">
-          <div style="display:inline-flex; align-items:center; justify-content:center; width:64px; height:64px; background:var(--accent-soft); color:var(--accent); border-radius:var(--radius-full); margin-bottom:var(--space-6);">
-            <svg class="icon" aria-hidden="true" style="width:28px; height:28px;"><use href="assets/icons.svg#i-sparkles"></use></svg>
-          </div>
-
-          <h1 id="page-title" style="font-size:var(--fs-2xl); font-weight:var(--fw-semibold); margin-bottom:var(--space-3); letter-spacing:var(--letter-tight);">
-            Welcome
+    <div class="page-main">
+      <div class="container">
+        <div class="stack gap-2" style="margin-bottom: var(--space-6);">
+          <span class="section-eyebrow">Staff</span>
+          <h1 id="dash-title" style="font-size: clamp(1.75rem, 3vw, 2.25rem); font-weight: var(--fw-semibold); letter-spacing: -0.02em; line-height: 1.15;">
+            Dashboard
           </h1>
-          <p id="page-message" style="font-size:var(--fs-md); color:var(--text-secondary); line-height:var(--lh-relaxed); max-width:480px; margin:0 auto var(--space-8);">
-            This page is part of the next build phase.
-          </p>
+        </div>
 
-          <div class="row gap-3" style="justify-content:center; flex-wrap:wrap;">
-            <a class="btn btn-secondary" href="index.html">Back to home</a>
+        <div id="admin-region" data-testid="admin-region" class="stack gap-6">
+          <!-- Tabs -->
+          <div class="tabs" role="tablist" aria-label="Sections">
+            <button type="button" class="tab is-active" role="tab" id="tab-tickets"
+                    aria-selected="true" aria-controls="panel-tickets" data-tab="tickets">
+              <span>Tickets</span>
+              <span class="count" id="tickets-count" data-testid="tickets-count">…</span>
+            </button>
+            <button type="button" class="tab" role="tab" id="tab-inquiries"
+                    aria-selected="false" aria-controls="panel-inquiries" data-tab="inquiries" tabindex="-1">
+              <span>Inquiries</span>
+              <span class="count" id="inquiries-count" data-testid="inquiries-count">…</span>
+            </button>
           </div>
+
+          <!-- Tickets panel -->
+          <section id="panel-tickets" role="tabpanel" aria-labelledby="tab-tickets"
+                   data-testid="panel-tickets" class="stack gap-4">
+            <div class="filter-row" data-testid="status-filter" role="group" aria-label="Filter by status">
+              <span class="filter-label">Status</span>
+              <button type="button" class="filter-pill is-active" data-status="" data-testid="filter-status-all">All</button>
+              <button type="button" class="filter-pill" data-status="pending" data-testid="filter-status-pending">Pending</button>
+              <button type="button" class="filter-pill" data-status="in_process" data-testid="filter-status-in_process">In Process</button>
+              <button type="button" class="filter-pill" data-status="hold" data-testid="filter-status-hold">On Hold</button>
+              <button type="button" class="filter-pill" data-status="solved" data-testid="filter-status-solved">Solved</button>
+            </div>
+            <div class="filter-row" data-testid="kind-filter" role="group" aria-label="Filter by kind">
+              <span class="filter-label">Type</span>
+              <button type="button" class="filter-pill is-active" data-kind="" data-testid="filter-kind-all">All</button>
+              <button type="button" class="filter-pill" data-kind="request" data-testid="filter-kind-request">Request</button>
+              <button type="button" class="filter-pill" data-kind="complaint" data-testid="filter-kind-complaint">Complaint</button>
+            </div>
+            <div id="ticket-list" class="stack gap-3" data-testid="ticket-list" aria-live="polite">
+              <div class="text-muted" style="padding: var(--space-6); text-align: center;">Loading…</div>
+            </div>
+          </section>
+
+          <!-- Inquiries panel -->
+          <section id="panel-inquiries" role="tabpanel" aria-labelledby="tab-inquiries"
+                   data-testid="panel-inquiries" class="stack gap-4" hidden>
+            <div class="filter-row" data-testid="inquiry-status-filter" role="group" aria-label="Filter by status">
+              <span class="filter-label">Status</span>
+              <button type="button" class="filter-pill is-active" data-inq-status="" data-testid="filter-inq-all">All</button>
+              <button type="button" class="filter-pill" data-inq-status="waiting" data-testid="filter-inq-waiting">Waiting</button>
+              <button type="button" class="filter-pill" data-inq-status="active" data-testid="filter-inq-active">Active</button>
+              <button type="button" class="filter-pill" data-inq-status="resolved" data-testid="filter-inq-resolved">Resolved</button>
+            </div>
+            <div id="inquiry-list" class="stack gap-3" data-testid="inquiry-list" aria-live="polite">
+              <div class="text-muted" style="padding: var(--space-6); text-align: center;">Loading…</div>
+            </div>
+          </section>
         </div>
       </div>
     </div>
   </main>
 
-  <script type="module">
-    import { injectSprite } from './js/icons.js';
-
-    injectSprite();
-
-    var path = window.location.pathname;
-    var filename = path.substring(path.lastIndexOf('/') + 1);
-
-    var titles = {
-      'submit.html': { title: 'Submit a ticket', message: 'This is the page where residents file a new request or complaint. The form, photo upload, and tracking ID generation are part of the next build phase.' },
-      'track.html':  { title: 'Track a ticket',  message: 'Look up any ticket by its tracking ID — see status, comments, and full history. Coming up after the resident submission flow ships.' },
-      'ticket.html': { title: 'Ticket detail',   message: 'Three-column view: ticket info, issue details, and the full comments + history thread. Built after submission and lookup are working.' },
-      'login.html':  { title: 'Official login',  message: 'Government officials sign in here. The admin side of CivicSays is built after the resident flows are done.' },
-      'admin.html':  { title: 'Admin dashboard', message: 'The management view: stats, ticket queue, inquiry panel, and live chat. This is the official side of CivicSays — built after resident flows are working.' },
-    };
-
-    var info = titles[filename] || { title: 'Coming up', message: 'This page is part of the next build phase.' };
-    document.getElementById('page-title').textContent = info.title;
-    document.getElementById('page-message').textContent = info.message;
-  </script>
+  <script type="module" src="js/admin.js"></script>
 </body>
 </html>

@@ -1155,72 +1155,82 @@ function buildCommentForm(ticket) {
   form.style.borderTop = '1px solid var(--border-default)';
   form.setAttribute('aria-label', 'Post a comment');
 
+  // Staff (signed-in officials) post under their signed-in identity, so
+  // they don't see the name/phone fields. Residents still do.
+  var isOfficial = !!state.official;
+
   var grid = document.createElement('div');
   grid.className = 'form-grid';
 
-  // Name
-  var nameField = document.createElement('div');
-  nameField.className = 'field';
-  var nameLabel = document.createElement('label');
-  nameLabel.className = 'field-label';
-  nameLabel.htmlFor = 'c-name';
-  nameLabel.textContent = 'Your name';
-  nameField.appendChild(nameLabel);
-  var nameInput = document.createElement('input');
-  nameInput.className = 'input';
-  nameInput.type = 'text';
-  nameInput.id = 'c-name';
-  nameInput.name = 'name';
-  nameInput.maxLength = 100;
-  nameInput.required = true;
-  nameInput.autocomplete = 'name';
-  nameInput.placeholder = 'Jane Doe';
-  nameInput.setAttribute('aria-describedby', 'err-c-name');
-  nameField.appendChild(nameInput);
-  var nameErr = document.createElement('span');
-  nameErr.className = 'field-error';
-  nameErr.id = 'err-c-name';
-  nameErr.setAttribute('role', 'alert');
-  nameField.appendChild(nameErr);
-  grid.appendChild(nameField);
+  // Name (residents only)
+  var nameInput = null;
+  if (!isOfficial) {
+    var nameField = document.createElement('div');
+    nameField.className = 'field';
+    var nameLabel = document.createElement('label');
+    nameLabel.className = 'field-label';
+    nameLabel.htmlFor = 'c-name';
+    nameLabel.textContent = 'Your name';
+    nameField.appendChild(nameLabel);
+    nameInput = document.createElement('input');
+    nameInput.className = 'input';
+    nameInput.type = 'text';
+    nameInput.id = 'c-name';
+    nameInput.name = 'name';
+    nameInput.maxLength = 100;
+    nameInput.required = true;
+    nameInput.autocomplete = 'name';
+    nameInput.placeholder = 'Jane Doe';
+    nameInput.setAttribute('aria-describedby', 'err-c-name');
+    nameField.appendChild(nameInput);
+    var nameErr = document.createElement('span');
+    nameErr.className = 'field-error';
+    nameErr.id = 'err-c-name';
+    nameErr.setAttribute('role', 'alert');
+    nameField.appendChild(nameErr);
+    grid.appendChild(nameField);
+  }
 
-  // Phone
-  var phoneField = document.createElement('div');
-  phoneField.className = 'field';
-  var phoneLabel = document.createElement('label');
-  phoneLabel.className = 'field-label';
-  phoneLabel.htmlFor = 'c-phone';
-  phoneLabel.textContent = 'Phone';
-  phoneField.appendChild(phoneLabel);
-  var phoneInput = document.createElement('input');
-  phoneInput.className = 'input';
-  phoneInput.type = 'tel';
-  phoneInput.id = 'c-phone';
-  phoneInput.name = 'phone';
-  phoneInput.maxLength = 11;
-  phoneInput.required = true;
-  phoneInput.inputMode = 'numeric';
-  phoneInput.autocomplete = 'tel';
-  phoneInput.placeholder = '09120880629';
-  phoneInput.setAttribute('aria-describedby', 'err-c-phone');
-  phoneField.appendChild(phoneInput);
-  var phoneErr = document.createElement('span');
-  phoneErr.className = 'field-error';
-  phoneErr.id = 'err-c-phone';
-  phoneErr.setAttribute('role', 'alert');
-  phoneField.appendChild(phoneErr);
-  grid.appendChild(phoneField);
+  // Phone (residents only)
+  var phoneInput = null;
+  if (!isOfficial) {
+    var phoneField = document.createElement('div');
+    phoneField.className = 'field';
+    var phoneLabel = document.createElement('label');
+    phoneLabel.className = 'field-label';
+    phoneLabel.htmlFor = 'c-phone';
+    phoneLabel.textContent = 'Phone';
+    phoneField.appendChild(phoneLabel);
+    phoneInput = document.createElement('input');
+    phoneInput.className = 'input';
+    phoneInput.type = 'tel';
+    phoneInput.id = 'c-phone';
+    phoneInput.name = 'phone';
+    phoneInput.maxLength = 11;
+    phoneInput.required = true;
+    phoneInput.inputMode = 'numeric';
+    phoneInput.autocomplete = 'tel';
+    phoneInput.placeholder = '09120880629';
+    phoneInput.setAttribute('aria-describedby', 'err-c-phone');
+    phoneField.appendChild(phoneInput);
+    var phoneErr = document.createElement('span');
+    phoneErr.className = 'field-error';
+    phoneErr.id = 'err-c-phone';
+    phoneErr.setAttribute('role', 'alert');
+    phoneField.appendChild(phoneErr);
+    grid.appendChild(phoneField);
+  }
 
-  form.appendChild(grid);
+  if (!isOfficial) form.appendChild(grid);
 
-  // Body
+  // Body (always)
   var bodyField = document.createElement('div');
   bodyField.className = 'field';
   bodyField.style.marginTop = 'var(--space-4)';
   var bodyLabel = document.createElement('label');
   bodyLabel.className = 'field-label';
   bodyLabel.htmlFor = 'c-body';
-  bodyLabel.textContent = 'Comment';
+  bodyLabel.textContent = isOfficial ? 'Official reply' : 'Comment';
   bodyField.appendChild(bodyLabel);
   var bodyInput = document.createElement('textarea');
   bodyInput.className = 'textarea';
@@ -1229,7 +1239,9 @@ function buildCommentForm(ticket) {
   bodyInput.rows = 4;
   bodyInput.maxLength = MAX_COMMENT;
   bodyInput.required = true;
-  bodyInput.placeholder = 'Add an update, follow-up, or new information about this ticket.';
+  bodyInput.placeholder = isOfficial
+    ? 'Reply to the resident. Your name will appear as ' + state.official.full_name + '.'
+    : 'Add an update, follow-up, or new information about this ticket.';
   bodyInput.setAttribute('aria-describedby', 'hint-c-body err-c-body');
   bodyField.appendChild(bodyInput);
   var bodyHint = document.createElement('span');
@@ -1241,6 +1253,15 @@ function buildCommentForm(ticket) {
   bodyHint.appendChild(bodyCount);
   bodyHint.appendChild(document.createTextNode(' / ' + MAX_COMMENT));
   bodyField.appendChild(bodyHint);
+
+  if (isOfficial) {
+    // Mirror the "you're posting as X" hint shown on admin forms.
+    var as = document.createElement('span');
+    as.className = 'field-hint comment-as-official';
+    as.textContent = 'Posting as ' + state.official.full_name + ' (official)';
+    bodyField.appendChild(as);
+  }
+
   var bodyErr = document.createElement('span');
   bodyErr.className = 'field-error';
   bodyErr.id = 'err-c-body';
@@ -1268,16 +1289,19 @@ function buildCommentForm(ticket) {
   form.appendChild(actions);
 
   // Pre-fill from sessionStorage cache (if present) and from the ticket row
-  // (the ticket has the original submitter's name+phone).
-  var identity = readIdentity();
-  if (identity && identity.name) nameInput.value = identity.name;
-  if (identity && identity.phone) phoneInput.value = identity.phone;
-  // If the cached identity doesn't match the ticket, prefer the ticket's.
-  if (ticket.resident_name && nameInput.value !== ticket.resident_name) {
-    nameInput.value = ticket.resident_name;
-  }
-  if (ticket.resident_phone && phoneInput.value !== ticket.resident_phone) {
-    phoneInput.value = ticket.resident_phone;
+  // (the ticket has the original submitter's name+phone). Residents only —
+  // officials post under their signed-in identity.
+  if (!isOfficial) {
+    var identity = readIdentity();
+    if (identity && identity.name) nameInput.value = identity.name;
+    if (identity && identity.phone) phoneInput.value = identity.phone;
+    // If the cached identity doesn't match the ticket, prefer the ticket's.
+    if (ticket.resident_name && nameInput.value !== ticket.resident_name) {
+      nameInput.value = ticket.resident_name;
+    }
+    if (ticket.resident_phone && phoneInput.value !== ticket.resident_phone) {
+      phoneInput.value = ticket.resident_phone;
+    }
   }
 
   // Live counter
@@ -1285,9 +1309,11 @@ function buildCommentForm(ticket) {
     bodyCount.textContent = String(bodyInput.value.length);
     clearFieldError('c-body');
   });
-  [nameInput, phoneInput].forEach(function (el) {
-    el.addEventListener('input', function () { clearFieldError(el.id); });
-  });
+  if (!isOfficial) {
+    [nameInput, phoneInput].forEach(function (el) {
+      el.addEventListener('input', function () { clearFieldError(el.id); });
+    });
+  }
 
   form.addEventListener('submit', function (e) {
     e.preventDefault();
@@ -1368,13 +1394,66 @@ async function onCommentSubmit(form, btn, ticket) {
   if (state.posting) return;
   state.posting = true;
 
+  var bodyEl = form.querySelector('#c-body');
+  var body = (bodyEl.value || '').trim();
+
+  // ---------------------------------------------------------------------
+  // Official branch — direct insert (RLS permits author_role='official').
+  // The official's identity is derived server-side from auth.uid() and
+  // current_official_name(); the client just supplies the body.
+  // ---------------------------------------------------------------------
+  if (state.official) {
+    var firstInvalidOfficial = null;
+    if (!body) {
+      setFieldError('c-body', 'Please write something.');
+      firstInvalidOfficial = bodyEl;
+    } else if (body.length > MAX_COMMENT) {
+      setFieldError('c-body', 'Comment is too long (max ' + MAX_COMMENT + ' characters).');
+      firstInvalidOfficial = bodyEl;
+    } else clearFieldError('c-body');
+
+    if (firstInvalidOfficial) {
+      firstInvalidOfficial.focus();
+      state.posting = false;
+      return;
+    }
+
+    btn.setAttribute('aria-busy', 'true');
+    var restoreOff = buttonBusy(btn);
+    try {
+      var co = await getClient();
+      await unwrap(
+        co.from(T.TICKET_COMMENTS).insert({
+          ticket_id: ticket.id,
+          author_name: state.official.full_name,
+          author_role: 'official',
+          body: body,
+        })
+      );
+      // Realtime channel will append the new comment — we don't insert
+      // it manually.
+      bodyEl.value = '';
+      bodyEl.dispatchEvent(new Event('input'));
+      toast('Official reply posted', 'success', 1800);
+    } catch (err) {
+      toast(friendlyError(err), 'error', 6000);
+    } finally {
+      btn.removeAttribute('aria-busy');
+      restoreOff();
+      state.posting = false;
+    }
+    return;
+  }
+
+  // ---------------------------------------------------------------------
+  // Resident branch — verify name+phone against the ticket via the
+  // post_resident_comment RPC.
+  // ---------------------------------------------------------------------
   var nameEl = form.querySelector('#c-name');
   var phoneEl = form.querySelector('#c-phone');
-  var bodyEl = form.querySelector('#c-body');
 
   var name = (nameEl.value || '').trim();
   var phone = (phoneEl.value || '').replace(/\D/g, '');
-  var body = (bodyEl.value || '').trim();
 
   var firstInvalid = null;
   if (!name) { setFieldError('c-name', 'Please enter your name.'); firstInvalid = firstInvalid || nameEl; }
