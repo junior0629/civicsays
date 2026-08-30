@@ -116,10 +116,11 @@
   --space-24:  96px;
 
   /* -------------------------------------------------------------------------
-     Typography — Inter (geometric, clean, slightly lightweight)
+     Typography — IBM Plex Sans (institutional, character, civic feel)
+     Plex is open-source via Google Fonts. Pairs with Plex Mono for IDs.
      ------------------------------------------------------------------------- */
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'SF Mono', 'JetBrains Mono', 'Fira Code', Menlo, monospace;
+  --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'SF Mono', 'JetBrains Mono', 'Fira Code', Menlo, monospace;
 
   --fs-xs:    12px;
   --fs-sm:    13px;

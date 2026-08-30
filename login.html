@@ -10,7 +10,7 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" />
 
   <link rel="stylesheet" href="style/tokens.css" />
   <link rel="stylesheet" href="style/base.css" />
@@ -49,7 +49,7 @@
           <h1 style="font-size: clamp(1.75rem, 3vw, 2.25rem); font-weight: var(--fw-semibold); letter-spacing: -0.02em; line-height: 1.15;">
             Sign in to the dashboard
           </h1>
-          <p style="color: var(--text-secondary); max-width: 520px; margin: 0 auto; line-height: var(--lh-relaxed);">
+          <p style="color: var(--text-secondary); max-width: 520px; margin: var(--space-2) auto 0; line-height: var(--lh-relaxed); text-align: left;">
             Government staff only. Residents don't need an account — use
             <a href="submit.html" style="color: var(--accent); text-decoration: underline; text-underline-offset: 2px;">Submit</a>
             or
@@ -95,7 +95,11 @@
         </form>
 
         <p style="margin-top: var(--space-6); text-align: center; color: var(--text-muted); font-size: var(--fs-sm);">
-          Trouble signing in? Contact your administrator.
+          Trouble signing in? Forgot your password?
+          <a href="mailto:support@civicsays.local?subject=CivicSays%20staff%20sign-in%20help"
+             style="color: var(--accent); text-decoration: underline; text-underline-offset: 2px;">
+            Contact support
+          </a>.
         </p>
       </div>
     </div>

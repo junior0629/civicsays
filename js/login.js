@@ -3,27 +3,49 @@
 // Sign-in form for staff. Uses js/auth.js → signIn(), redirects to the
 // `return` query param (sanitised) on success, shows a friendly error
 // on failure.
+//
+// SECURITY: the three possible sign-in failures (wrong password, account
+// doesn't exist, account deactivated) are collapsed to a single error
+// string with a fixed 1.5s delay, and a 2x backoff on consecutive
+// failures. This prevents email enumeration via timing or message
+// differences. Deactivated is kept distinct because legitimate staff
+// have to know to contact the admin — but only after the same delay.
 // =========================================================================
 
-import { signIn, getCurrentOfficial } from './auth.js';
+import { signIn, getCurrentOfficial, SignInError } from './auth.js';
 import { injectSprite } from './icons.js';
 import { buttonBusy } from './ui.js';
 
 injectSprite();
 
-var form = document.getElementById('login-form');
-var emailEl = document.getElementById('f-email');
-var passwordEl = document.getElementById('f-password');
-var emailErr = document.getElementById('err-email');
-var passwordErr = document.getElementById('err-password');
-var formError = document.getElementById('form-error');
-var submitBtn = document.getElementById('login-submit');
+// DOM-element lookups. Guarded so the module can be imported under
+// Node/test environments without throwing.
+var form = typeof document !== 'undefined' ? document.getElementById('login-form') : null;
+var emailEl = typeof document !== 'undefined' ? document.getElementById('f-email') : null;
+var passwordEl = typeof document !== 'undefined' ? document.getElementById('f-password') : null;
+var emailErr = typeof document !== 'undefined' ? document.getElementById('err-email') : null;
+var passwordErr = typeof document !== 'undefined' ? document.getElementById('err-password') : null;
+var formError = typeof document !== 'undefined' ? document.getElementById('form-error') : null;
+var submitBtn = typeof document !== 'undefined' ? document.getElementById('login-submit') : null;
 
 /**
- * Read the `return` query param and validate it as a relative path.
- * Rejects anything with a protocol or `//` (open redirect protection).
+ * Map a sign-in failure code to the user-facing message. 'deactivated' is
+ * kept distinct (after the same anti-enumeration delay) so legitimate
+ * staff know to contact the admin. All other failures collapse to a
+ * single "Sign in failed" string to prevent email enumeration.
+ *
+ * @param {string} code  one of SignInError.*
+ * @returns {string}
  */
-function readReturnPath() {
+export function signInErrorMessage(code) {
+  if (code === SignInError.Deactivated) {
+    return 'This account has been deactivated. Contact your administrator.';
+  }
+  return 'Sign in failed. Please check your email and password.';
+}
+
+/** @returns {string} safe relative path or 'admin.html'. */
+export function readReturnPath() {
   try {
     var raw = new URLSearchParams(window.location.search).get('return');
     if (!raw) return 'admin.html';
@@ -90,16 +112,46 @@ function validate() {
   return { ok: ok, firstInvalid: firstInvalid };
 }
 
-// Clear field errors as the user types.
-[emailEl, passwordEl].forEach(function (el, i) {
-  var errEl = i === 0 ? emailErr : passwordErr;
-  el.addEventListener('input', function () {
-    setFieldError(el, errEl, null);
-    showFormError(null);
-  });
-});
+// Fixed anti-enumeration delay. Slightly longer than the typical
+// sign-in round-trip so the user can't tell AuthFailed from NotOfficial
+// by timing.
+var ENUMERATION_DELAY_MS = 1500;
+var BACKOFF_KEY = 'civicsays:login:fail-count';
 
-form.addEventListener('submit', async function (e) {
+function getFailCount() {
+  try {
+    return parseInt(sessionStorage.getItem(BACKOFF_KEY) || '0', 10) || 0;
+  } catch (e) { return 0; }
+}
+
+function setFailCount(n) {
+  try { sessionStorage.setItem(BACKOFF_KEY, String(n)); } catch (e) {}
+}
+
+function clearFailCount() {
+  try { sessionStorage.removeItem(BACKOFF_KEY); } catch (e) {}
+}
+
+function delayBeforeError() {
+  var n = getFailCount();
+  // 1.5s base, doubles on consecutive failures (capped at 6s).
+  var ms = ENUMERATION_DELAY_MS * Math.pow(2, Math.min(n, 2));
+  setFailCount(n + 1);
+  return new Promise(function (resolve) { setTimeout(resolve, ms); });
+}
+
+// Clear field errors as the user types.
+if (form && emailEl && passwordEl) {
+  [emailEl, passwordEl].forEach(function (el, i) {
+    var errEl = i === 0 ? emailErr : passwordErr;
+    el.addEventListener('input', function () {
+      setFieldError(el, errEl, null);
+      showFormError(null);
+    });
+  });
+}
+
+if (form) form.addEventListener('submit', async function (e) {
   e.preventDefault();
   var v = validate();
   if (!v.ok) {
@@ -111,22 +163,19 @@ form.addEventListener('submit', async function (e) {
   var restore = buttonBusy(submitBtn);
   try {
     await signIn(emailEl.value.trim(), passwordEl.value);
+    clearFailCount();
     // Success — bounce to the return target.
     window.location.replace(readReturnPath());
   } catch (err) {
-    var msg = (err && err.message) || 'Sign in failed. Please try again.';
-    // Map auth-specific errors to the field they belong to.
-    if (/not registered as an official/i.test(msg)) {
-      setFieldError(emailEl, emailErr, 'This email is not registered as a staff account.');
-      emailEl.focus();
-    } else if (/deactivated/i.test(msg)) {
-      setFieldError(emailEl, emailErr, 'This account has been deactivated. Contact your administrator.');
-      emailEl.focus();
-    } else {
-      showFormError(msg);
-      passwordEl.focus();
-      passwordEl.select();
-    }
+    // Always wait the anti-enumeration delay before showing the error.
+    await delayBeforeError();
+
+    // The three failure codes all become the same user-facing string,
+    // except 'deactivated' which we expose (after the same delay) so
+    // legitimate staff know to contact the admin.
+    var code = err && err.code;
+    setFieldError(emailEl, emailErr, signInErrorMessage(code));
+    emailEl.focus();
   } finally {
     submitBtn.removeAttribute('aria-busy');
     restore();

@@ -2,6 +2,13 @@
 // CivicSays — auth.js
 // Supabase Auth wrapper. Sign in, sign out, get current official, observe
 // session changes.
+//
+// SECURITY: signIn() throws one of three errors — AuthFailed (wrong
+// password / no account), NotOfficial (auth user exists but no officials
+// row), Deactivated (officials row exists but is_active=false). The page
+// module collapses the first two into a single user-facing string and
+// adds a small delay to rate-limit email enumeration. This module keeps
+// the distinction so internal callers can still tell them apart.
 // =========================================================================
 
 import { getClient, unwrap, friendlyError, T } from './supabase.js';
@@ -11,20 +18,42 @@ import { getClient, unwrap, friendlyError, T } from './supabase.js';
  */
 
 /**
+ * Stable error names so callers can branch without parsing messages.
+ */
+export const SignInError = Object.freeze({
+  AuthFailed:  'auth_failed',
+  NotOfficial: 'not_official',
+  Deactivated: 'deactivated',
+});
+
+export class SignInFailure extends Error {
+  constructor(code, message) {
+    super(message);
+    this.name = 'SignInFailure';
+    this.code = code;
+  }
+}
+
+/**
  * Sign in an official.
  * @param {string} email
  * @param {string} password
  * @returns {Promise<Official>}
+ * @throws {SignInFailure}  with .code in SignInError
  */
 export async function signIn(email, password) {
   var c = await getClient();
   var result = await c.auth.signInWithPassword({ email, password });
   if (result.error) {
-    throw new Error(friendlyError(result.error));
+    // Wrong password, no account, network, etc. — caller collapses to a
+    // single user-facing string.
+    throw new SignInFailure(SignInError.AuthFailed, friendlyError(result.error));
   }
   // Load the matching officials row.
   var user = result.data.user;
-  if (!user) throw new Error('Login succeeded but no user returned.');
+  if (!user) {
+    throw new SignInFailure(SignInError.AuthFailed, 'Login succeeded but no user returned.');
+  }
 
   var row = await unwrap(
     c.from(T.OFFICIALS)
@@ -34,12 +63,15 @@ export async function signIn(email, password) {
   );
 
   if (!row) {
+    // Auth user exists but no officials row. Sign out to avoid a leaked
+    // session token. Distinguishable from AuthFailed for internal use;
+    // the login UI still shows a single error.
     await signOut();
-    throw new Error('Account is not registered as an official.');
+    throw new SignInFailure(SignInError.NotOfficial, 'Account is not registered as an official.');
   }
   if (!row.is_active) {
     await signOut();
-    throw new Error('This account has been deactivated.');
+    throw new SignInFailure(SignInError.Deactivated, 'This account has been deactivated.');
   }
   return row;
 }

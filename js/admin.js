@@ -47,6 +47,27 @@ var state = {
 var realtimeUnsubs = [];
 
 // -------------------------------------------------------------------------
+// withTimeout — race a promise against a timer so a stuck RPC can't park
+// the dashboard. Throws a friendly Error on timeout.
+// -------------------------------------------------------------------------
+function withTimeout(promise, ms, label) {
+  return new Promise(function (resolve, reject) {
+    var t = setTimeout(function () {
+      reject(new Error((label || 'Request') + ' timed out after ' + ms + 'ms.'));
+    }, ms);
+    promise.then(
+      function (v) { clearTimeout(t); resolve(v); },
+      function (e) { clearTimeout(t); reject(e); }
+    );
+  });
+}
+
+// Per-RPC budget. Supabase usually responds in <500ms; 10s is generous
+// enough for a slow mobile connection but short enough that a stuck
+// network doesn't park the page.
+var RPC_TIMEOUT_MS = 10000;
+
+// -------------------------------------------------------------------------
 // Entry
 // -------------------------------------------------------------------------
 main().catch(function (err) {
@@ -75,6 +96,18 @@ async function main() {
   // 4. Load initial data + start realtime.
   await Promise.all([loadTickets(), loadInquiries()]);
   wireRealtime();
+
+  // 5. Observability — one structured log line per dashboard load.
+  // Useful for spotting misuse from the browser console; Supabase logs
+  // already capture the RPC, this is the JS-side mirror.
+  console.info('[civicsays:admin] loaded', {
+    officialId: state.official && state.official.id,
+    activeTab: state.activeTab,
+    tickets: state.tickets.length,
+    inquiries: state.inquiries.length,
+    ticketError: !!state.error.tickets,
+    inquiryError: !!state.error.inquiries,
+  });
 }
 
 // -------------------------------------------------------------------------
@@ -124,22 +157,47 @@ async function onSignOut() {
 // -------------------------------------------------------------------------
 // Tabs
 // -------------------------------------------------------------------------
+
+/**
+ * Apply the WAI-ARIA tabs pattern to the given tab/panel refs and return
+ * the resulting active tab. Pure function (apart from mutating the
+ * passed-in DOM attributes) so it can be unit-tested without a full
+ * document.
+ *
+ * @param {{
+ *   tabTickets: HTMLElement, tabInquiries: HTMLElement,
+ *   panelTickets: HTMLElement, panelInquiries: HTMLElement
+ * }} refs
+ * @param {'tickets'|'inquiries'} tab
+ * @returns {'tickets'|'inquiries'}
+ */
+export function activateTab(refs, tab) {
+  var isTickets = tab !== 'inquiries';
+  refs.tabTickets.setAttribute('aria-selected', String(isTickets));
+  refs.tabTickets.classList.toggle('is-active', isTickets);
+  refs.tabTickets.setAttribute('tabindex', isTickets ? '0' : '-1');
+  refs.tabInquiries.setAttribute('aria-selected', String(!isTickets));
+  refs.tabInquiries.classList.toggle('is-active', !isTickets);
+  refs.tabInquiries.setAttribute('tabindex', isTickets ? '-1' : '0');
+  refs.panelTickets.hidden = !isTickets;
+  refs.panelInquiries.hidden = isTickets;
+  return isTickets ? 'tickets' : 'inquiries';
+}
+
 function wireTabs() {
   var tabTickets = document.getElementById('tab-tickets');
   var tabInquiries = document.getElementById('tab-inquiries');
   if (!tabTickets || !tabInquiries) return;
 
+  var refs = {
+    tabTickets: tabTickets,
+    tabInquiries: tabInquiries,
+    panelTickets: document.getElementById('panel-tickets'),
+    panelInquiries: document.getElementById('panel-inquiries'),
+  };
+
   function activate(tab) {
-    state.activeTab = tab === 'inquiries' ? 'inquiries' : 'tickets';
-    var isTickets = state.activeTab === 'tickets';
-    tabTickets.setAttribute('aria-selected', String(isTickets));
-    tabTickets.classList.toggle('is-active', isTickets);
-    tabTickets.setAttribute('tabindex', isTickets ? '0' : '-1');
-    tabInquiries.setAttribute('aria-selected', String(!isTickets));
-    tabInquiries.classList.toggle('is-active', !isTickets);
-    tabInquiries.setAttribute('tabindex', isTickets ? '-1' : '0');
-    document.getElementById('panel-tickets').hidden = !isTickets;
-    document.getElementById('panel-inquiries').hidden = isTickets;
+    state.activeTab = activateTab(refs, tab);
   }
 
   tabTickets.addEventListener('click', function () { activate('tickets'); });
@@ -213,13 +271,12 @@ async function loadTickets() {
 
   try {
     var c = await getClient();
-    var data = await unwrap(
-      c.rpc('list_staff_tickets', {
-        p_status_filter: state.statusFilter || null,
-        p_kind_filter:   state.kindFilter   || null,
-        p_limit: 50,
-      })
-    );
+    var rpc = c.rpc('list_staff_tickets', {
+      p_status_filter: state.statusFilter || null,
+      p_kind_filter:   state.kindFilter   || null,
+      p_limit: 50,
+    });
+    var data = await unwrap(await withTimeout(rpc, RPC_TIMEOUT_MS, 'list_staff_tickets'));
     state.tickets = Array.isArray(data) ? data : [];
   } catch (err) {
     state.error.tickets = friendlyError(err);
@@ -287,12 +344,15 @@ function renderTicketsList() {
   state.tickets.forEach(function (t) { list.appendChild(buildTicketCard(t)); });
 }
 
+export { buildTicketCard };
+
 function buildTicketCard(t) {
   var card = document.createElement('a');
   card.className = 'admin-ticket-card';
   card.href = 'ticket.html?id=' + encodeURIComponent(t.id);
   card.setAttribute('data-testid', 'ticket-card');
   card.setAttribute('data-ticket-id', t.id);
+  card.setAttribute('data-status', t.status || '');
   card.style.display = 'block';
   card.style.padding = 'var(--space-4) var(--space-5)';
   card.style.background = 'var(--glass-primary)';
@@ -375,12 +435,11 @@ async function loadInquiries() {
 
   try {
     var c = await getClient();
-    var data = await unwrap(
-      c.rpc('list_staff_inquiries', {
-        p_status_filter: state.inqStatusFilter || null,
-        p_limit: 50,
-      })
-    );
+    var rpc = c.rpc('list_staff_inquiries', {
+      p_status_filter: state.inqStatusFilter || null,
+      p_limit: 50,
+    });
+    var data = await unwrap(await withTimeout(rpc, RPC_TIMEOUT_MS, 'list_staff_inquiries'));
     state.inquiries = Array.isArray(data) ? data : [];
   } catch (err) {
     state.error.inquiries = friendlyError(err);

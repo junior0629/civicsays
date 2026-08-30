@@ -486,11 +486,31 @@
 
 /* -------------------------------------------------------------------------
    Admin ticket card — staff dashboard list row
+   Left-border accent by status so staff can scan urgency at a glance.
    ------------------------------------------------------------------------- */
 .admin-ticket-card {
+  border-left: 4px solid var(--border-default);
   transition: transform var(--duration-fast) var(--ease-out),
               border-color var(--duration-fast) var(--ease-out),
               background-color var(--duration-fast) var(--ease-out);
+}
+
+/* Status-driven left accent — keeps the existing border + adds the
+   status color as a 4px left bar. Solved cards fade so the eye skips
+   closed work; pending cards pop so the eye lands on open work. */
+.admin-ticket-card[data-status="pending"]    { border-left-color: var(--status-pending); }
+.admin-ticket-card[data-status="in_process"] { border-left-color: var(--status-process); }
+.admin-ticket-card[data-status="hold"]       { border-left-color: var(--text-muted); }
+.admin-ticket-card[data-status="solved"]     { border-left-color: var(--status-solved); opacity: 0.78; }
+
+/* On the admin list, the status badge is the visual anchor — make it
+   slightly larger and bolder than the resident-side badge. */
+.admin-ticket-card .badge {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.02em;
+  height: 26px;
+  padding: 0 var(--space-3);
 }
 
 .admin-ticket-card:hover,
