@@ -16,6 +16,7 @@
   <link rel="stylesheet" href="style/base.css" />
   <link rel="stylesheet" href="style/components.css" />
   <link rel="stylesheet" href="style/layout.css" />
+  <link rel="stylesheet" href="style/admin.css" />
   <link rel="icon" type="image/png" href="Logo.png" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://*.supabase.co https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co; base-uri 'self'; form-action 'self';" />
 
@@ -23,90 +24,213 @@
   <script src="env-loader.js"></script>
 </head>
 <body>
-  <a href="#main" class="visually-hidden">Skip to content</a>
+  <a href="#admin-main" class="visually-hidden">Skip to main content</a>
 
-  <nav class="navbar" aria-label="Primary">
-    <div class="container">
-      <div class="navbar-inner">
-        <a class="navbar-brand" href="admin.html" aria-label="CivicSays dashboard">
-          <img src="Logo.png" alt="" />
-          <span>CivicSays</span>
-        </a>
-        <div class="navbar-links">
-          <a class="navbar-link is-active" href="admin.html">Dashboard</a>
-        </div>
-        <div class="navbar-actions" id="nav-action" data-testid="nav-action">
-          <span class="text-muted" style="font-size: var(--fs-sm);">Loading…</span>
-        </div>
-      </div>
+  <!--
+    Sidebar — persistent left column on desktop, drawer on mobile.
+    The aria-label "Primary" matches the public navbar so screen readers
+    see one consistent navigation landmark across the staff session.
+  -->
+  <aside class="admin-sidebar" id="admin-sidebar" aria-label="Primary">
+    <div class="admin-sidebar-brand">
+      <a href="admin.html" aria-label="CivicSays dashboard home">
+        <img src="Logo.png" alt="" />
+        <span>CivicSays</span>
+      </a>
     </div>
-  </nav>
 
-  <main id="main" class="page">
-    <div class="page-main">
-      <div class="container">
-        <div class="stack gap-2" style="margin-bottom: var(--space-6);">
-          <span class="section-eyebrow">Staff</span>
-          <h1 id="dash-title" style="font-size: clamp(1.75rem, 3vw, 2.25rem); font-weight: var(--fw-semibold); letter-spacing: -0.02em; line-height: 1.15;">
-            Dashboard
-          </h1>
-        </div>
+    <nav class="admin-sidebar-nav" aria-label="Sections">
+      <div class="admin-sidebar-group">
+        <div class="admin-sidebar-group-label" id="admin-nav-dashboard-label">Dashboard</div>
+        <ul class="admin-sidebar-list" aria-labelledby="admin-nav-dashboard-label">
+          <li>
+            <a class="admin-sidebar-link is-active" href="admin.html" data-testid="nav-overview">
+              <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-layout"></use></svg>
+              <span>Overview</span>
+            </a>
+          </li>
+        </ul>
+      </div>
 
-        <div id="admin-region" data-testid="admin-region" class="stack gap-6">
-          <!-- Tabs -->
-          <div class="tabs" role="tablist" aria-label="Sections">
-            <button type="button" class="tab is-active" role="tab" id="tab-tickets"
-                    aria-selected="true" aria-controls="panel-tickets" data-tab="tickets">
-              <span>Tickets</span>
-              <span class="count" id="tickets-count" data-testid="tickets-count">…</span>
-            </button>
-            <button type="button" class="tab" role="tab" id="tab-inquiries"
-                    aria-selected="false" aria-controls="panel-inquiries" data-tab="inquiries" tabindex="-1">
+      <div class="admin-sidebar-group">
+        <div class="admin-sidebar-group-label" id="admin-nav-tickets-label">Tickets</div>
+        <ul class="admin-sidebar-list" aria-labelledby="admin-nav-tickets-label">
+          <li>
+            <a class="admin-sidebar-link" href="admin.html#tickets" data-testid="nav-all-tickets">
+              <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-ticket"></use></svg>
+              <span>All tickets</span>
+            </a>
+          </li>
+          <li>
+            <a class="admin-sidebar-link" href="admin.html#inquiries" data-testid="nav-inquiries">
+              <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-message"></use></svg>
               <span>Inquiries</span>
-              <span class="count" id="inquiries-count" data-testid="inquiries-count">…</span>
-            </button>
-          </div>
-
-          <!-- Tickets panel -->
-          <section id="panel-tickets" role="tabpanel" aria-labelledby="tab-tickets"
-                   data-testid="panel-tickets" class="stack gap-4">
-            <div class="filter-row" data-testid="status-filter" role="group" aria-label="Filter by status">
-              <span class="filter-label">Status</span>
-              <button type="button" class="filter-pill is-active" data-status="" data-testid="filter-status-all">All</button>
-              <button type="button" class="filter-pill" data-status="pending" data-testid="filter-status-pending">Pending</button>
-              <button type="button" class="filter-pill" data-status="in_process" data-testid="filter-status-in_process">In Process</button>
-              <button type="button" class="filter-pill" data-status="hold" data-testid="filter-status-hold">On Hold</button>
-              <button type="button" class="filter-pill" data-status="solved" data-testid="filter-status-solved">Solved</button>
-            </div>
-            <div class="filter-row" data-testid="kind-filter" role="group" aria-label="Filter by kind">
-              <span class="filter-label">Type</span>
-              <button type="button" class="filter-pill is-active" data-kind="" data-testid="filter-kind-all">All</button>
-              <button type="button" class="filter-pill" data-kind="request" data-testid="filter-kind-request">Request</button>
-              <button type="button" class="filter-pill" data-kind="complaint" data-testid="filter-kind-complaint">Complaint</button>
-            </div>
-            <div id="ticket-list" class="stack gap-3" data-testid="ticket-list" aria-live="polite">
-              <div class="text-muted" style="padding: var(--space-6); text-align: center;">Loading…</div>
-            </div>
-          </section>
-
-          <!-- Inquiries panel -->
-          <section id="panel-inquiries" role="tabpanel" aria-labelledby="tab-inquiries"
-                   data-testid="panel-inquiries" class="stack gap-4" hidden>
-            <div class="filter-row" data-testid="inquiry-status-filter" role="group" aria-label="Filter by status">
-              <span class="filter-label">Status</span>
-              <button type="button" class="filter-pill is-active" data-inq-status="" data-testid="filter-inq-all">All</button>
-              <button type="button" class="filter-pill" data-inq-status="waiting" data-testid="filter-inq-waiting">Waiting</button>
-              <button type="button" class="filter-pill" data-inq-status="active" data-testid="filter-inq-active">Active</button>
-              <button type="button" class="filter-pill" data-inq-status="resolved" data-testid="filter-inq-resolved">Resolved</button>
-            </div>
-            <div id="inquiry-list" class="stack gap-3" data-testid="inquiry-list" aria-live="polite">
-              <div class="text-muted" style="padding: var(--space-6); text-align: center;">Loading…</div>
-            </div>
-          </section>
-        </div>
+            </a>
+          </li>
+        </ul>
       </div>
+
+      <div class="admin-sidebar-group">
+        <div class="admin-sidebar-group-label" id="admin-nav-activity-label">Activity</div>
+        <ul class="admin-sidebar-list" aria-labelledby="admin-nav-activity-label">
+          <li>
+            <a class="admin-sidebar-link" href="admin.html#activity" data-testid="nav-recent">
+              <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-history"></use></svg>
+              <span>Recent updates</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+    </nav>
+
+    <div class="admin-sidebar-account" id="admin-sidebar-account" data-testid="sidebar-account">
+      <!-- filled by js/admin.js with avatar + name + role + sign-out -->
     </div>
-  </main>
+  </aside>
+
+  <div class="admin-shell">
+    <div class="admin-main" id="admin-main">
+      <header class="admin-header">
+        <button class="admin-header-menu" type="button"
+                aria-label="Open navigation" aria-controls="admin-sidebar"
+                data-testid="admin-menu-btn" hidden>
+          <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-menu"></use></svg>
+        </button>
+
+        <div class="admin-header-search">
+          <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-search"></use></svg>
+          <input type="search" placeholder="Search tickets, residents, or ID…"
+                 aria-label="Search tickets, residents, or ID"
+                 id="admin-search" data-testid="admin-search" autocomplete="off" />
+          <kbd class="kbd">Ctrl K</kbd>
+        </div>
+
+        <div class="admin-header-actions">
+          <button class="admin-header-bell" type="button"
+                  aria-label="Notifications, 0 unread" data-testid="admin-bell">
+            <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-bell"></use></svg>
+            <span class="badge-count" aria-hidden="true">0</span>
+          </button>
+          <div class="admin-header-avatar" id="admin-header-avatar" aria-hidden="true"></div>
+        </div>
+      </header>
+
+      <main class="admin-page" id="admin-page">
+        <div class="admin-page-header">
+          <div>
+            <h1 class="admin-page-title" id="dash-title">Tickets</h1>
+            <p class="admin-page-subtitle">Manage and respond to citizen requests and complaints.</p>
+          </div>
+          <button class="btn btn-primary" type="button" data-testid="new-ticket-btn">
+            <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-plus"></use></svg>
+            <span>New ticket</span>
+          </button>
+        </div>
+
+        <!-- KPI cards — real counts, no fake trends -->
+        <div class="admin-kpi-row" id="admin-kpi-row" data-testid="admin-kpi-row">
+          <!-- filled by js/admin.js; 5 cards (total + 4 statuses) -->
+        </div>
+
+        <div class="admin-tabs" role="tablist" aria-label="Sections">
+          <button type="button" class="admin-tab is-active" role="tab" id="tab-tickets"
+                  aria-selected="true" aria-controls="panel-tickets" data-tab="tickets">
+            <span>Tickets</span>
+            <span class="count" id="tickets-count" data-testid="tickets-count">…</span>
+          </button>
+          <button type="button" class="admin-tab" role="tab" id="tab-inquiries"
+                  aria-selected="false" aria-controls="panel-inquiries" data-tab="inquiries" tabindex="-1">
+            <span>Inquiries</span>
+            <span class="count" id="inquiries-count" data-testid="inquiries-count">…</span>
+          </button>
+        </div>
+
+        <section id="panel-tickets" role="tabpanel" aria-labelledby="tab-tickets"
+                 class="admin-panel" data-testid="panel-tickets">
+          <div class="admin-filters" data-testid="status-filter" role="group" aria-label="Filter by status">
+            <span class="filter-label">Status</span>
+            <button type="button" class="filter-pill is-active" data-status="" data-testid="filter-status-all">All</button>
+            <button type="button" class="filter-pill" data-status="pending" data-testid="filter-status-pending">Pending</button>
+            <button type="button" class="filter-pill" data-status="in_process" data-testid="filter-status-in_process">In Process</button>
+            <button type="button" class="filter-pill" data-status="hold" data-testid="filter-status-hold">On Hold</button>
+            <button type="button" class="filter-pill" data-status="solved" data-testid="filter-status-solved">Solved</button>
+          </div>
+          <div class="admin-filters" data-testid="kind-filter" role="group" aria-label="Filter by kind">
+            <span class="filter-label">Type</span>
+            <button type="button" class="filter-pill is-active" data-kind="" data-testid="filter-kind-all">All</button>
+            <button type="button" class="filter-pill" data-kind="request" data-testid="filter-kind-request">Request</button>
+            <button type="button" class="filter-pill" data-kind="complaint" data-testid="filter-kind-complaint">Complaint</button>
+          </div>
+          <div class="admin-table-wrap" id="ticket-table-wrap" data-view="table">
+            <table class="admin-table" id="ticket-table">
+              <thead>
+                <tr>
+                  <th scope="col">Ticket ID</th>
+                  <th scope="col">Issue</th>
+                  <th scope="col">Resident</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Updated</th>
+                </tr>
+              </thead>
+              <tbody id="ticket-tbody" data-testid="ticket-list" aria-live="polite">
+                <!-- filled by js/admin.js; one <tr> per ticket -->
+              </tbody>
+            </table>
+            <div class="admin-cards" id="ticket-cards" aria-live="polite">
+              <!-- mobile fallback: existing card layout (hidden on desktop) -->
+            </div>
+          </div>
+        </section>
+
+        <section id="panel-inquiries" role="tabpanel" aria-labelledby="tab-inquiries"
+                 class="admin-panel" data-testid="panel-inquiries" hidden>
+          <div class="admin-filters" data-testid="inquiry-status-filter" role="group" aria-label="Filter by status">
+            <span class="filter-label">Status</span>
+            <button type="button" class="filter-pill is-active" data-inq-status="" data-testid="filter-inq-all">All</button>
+            <button type="button" class="filter-pill" data-inq-status="waiting" data-testid="filter-inq-waiting">Waiting</button>
+            <button type="button" class="filter-pill" data-inq-status="active" data-testid="filter-inq-active">Active</button>
+            <button type="button" class="filter-pill" data-inq-status="resolved" data-testid="filter-inq-resolved">Resolved</button>
+          </div>
+          <div class="admin-table-wrap" data-view="table">
+            <table class="admin-table" id="inquiry-table">
+              <thead>
+                <tr>
+                  <th scope="col">Subject</th>
+                  <th scope="col">Resident</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Last activity</th>
+                </tr>
+              </thead>
+              <tbody id="inquiry-tbody" data-testid="inquiry-list" aria-live="polite">
+                <!-- filled by js/admin.js -->
+              </tbody>
+            </table>
+            <div class="admin-cards" id="inquiry-cards" aria-live="polite">
+              <!-- mobile fallback -->
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <aside class="admin-rightrail" aria-label="At a glance" id="admin-rightrail">
+      <section class="admin-rail-card" aria-labelledby="rail-overview-title">
+        <h2 id="rail-overview-title" class="admin-rail-card-title">Ticket overview</h2>
+        <div class="rail-overview-list" id="rail-overview-body" data-testid="rail-overview">
+          <!-- legend + bars filled by js/admin.js -->
+        </div>
+      </section>
+      <section class="admin-rail-card" aria-labelledby="rail-activity-title" id="activity">
+        <h2 id="rail-activity-title" class="admin-rail-card-title">Recent activity</h2>
+        <ul class="admin-activity-list" id="rail-activity-body" data-testid="rail-activity">
+          <!-- 8 rows filled by js/admin.js; live-updated via realtime -->
+        </ul>
+      </section>
+    </aside>
+  </div>
+
+  <!-- Mobile drawer scrim — toggled by js/admin.js -->
+  <div class="admin-sidebar-scrim" id="admin-sidebar-scrim" aria-hidden="true"></div>
 
   <script type="module" src="js/admin.js"></script>
 </body>

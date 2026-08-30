@@ -96,6 +96,19 @@
   padding-bottom: var(--space-8);
 }
 
+/*
+  When the staff dashboard (or a staff-mounted ticket page) is rendering,
+  the .admin-sidebar takes over from the public .navbar. The page-main
+  element inside a ticket-detail page is no longer offset by the
+  navbar-height because the admin shell handles its own top spacing.
+  The body class .has-admin-sidebar is set by js/admin.js and js/ticket.js.
+*/
+body.has-admin-sidebar .navbar { display: none; }
+
+body.has-admin-sidebar .page-main {
+  padding-top: 0;
+}
+
 /* -------------------------------------------------------------------------
    Navbar
    ------------------------------------------------------------------------- */

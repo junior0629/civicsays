@@ -32,11 +32,13 @@ import {
 } from './realtime.js';
 import {
   openLightbox,
+  openModal,
   copyToClipboard,
   toast,
   buttonBusy,
 } from './ui.js';
 import { injectSprite, icon } from './icons.js';
+import { signOut } from './auth.js';
 
 // -------------------------------------------------------------------------
 // Constants
@@ -59,6 +61,8 @@ var state = {
   posting: false,       // debounce for comment form
   statusPosting: false, // debounce for status update
   teardown: [],         // functions to call on cleanup (realtime channels)
+  staffSidebar: false,  // whether we mounted the staff sidebar
+  staffMenu: null,      // the open status menu (for outside-click close)
 };
 
 // -------------------------------------------------------------------------
@@ -100,6 +104,14 @@ async function main() {
     state.official = await getCurrentOfficial();
   } catch {
     state.official = null;
+  }
+
+  // When the viewer is an official, swap the public navbar for the staff
+  // sidebar so this page is visually cohesive with admin.html. Residents
+  // keep the public navbar (so /track.html links into this page look
+  // like the same product as the rest of the public site).
+  if (state.official) {
+    mountStaffSidebar(state.official);
   }
 
   // 1. Parallel fetch — three queries, one round trip.
@@ -1335,44 +1347,11 @@ function buildOfficialNotice() {
 }
 
 // -------------------------------------------------------------------------
-// Rendering — status updater (officials only)
+// Rendering — status updater (officials only).
+// The 3-dot menu version lives further down in this file (after the staff
+// sidebar mount block) so the staff-side UI is colocated. wireStatusUpdater
+// still finds the updater in the .ticket-header, exactly like before.
 // -------------------------------------------------------------------------
-
-function buildStatusUpdater() {
-  if (!state.official) return null;
-
-  var wrap = document.createElement('div');
-  wrap.className = 'status-update';
-  wrap.setAttribute('data-testid', 'status-update');
-
-  var sel = document.createElement('select');
-  sel.className = 'select';
-  sel.id = 'status-select';
-  sel.setAttribute('aria-label', 'Change status');
-  Object.keys(TICKET_STATUS_LABELS).forEach(function (k) {
-    var opt = document.createElement('option');
-    opt.value = k;
-    opt.textContent = TICKET_STATUS_LABELS[k];
-    if (k === state.ticket.status) opt.selected = true;
-    sel.appendChild(opt);
-  });
-
-  var btn = document.createElement('button');
-  btn.type = 'button';
-  btn.className = 'btn btn-primary';
-  btn.id = 'status-update-btn';
-  btn.dataset.busyText = 'Updating…';
-  btn.textContent = 'Update';
-
-  wrap.appendChild(sel);
-  wrap.appendChild(btn);
-
-  btn.addEventListener('click', function () {
-    onStatusUpdate(sel, btn);
-  });
-
-  return wrap;
-}
 
 function wireStatusUpdater(id) {
   // Find the header's badges row and slot the updater after it. The header
@@ -1384,6 +1363,484 @@ function wireStatusUpdater(id) {
   if (!header) return;
   var updater = buildStatusUpdater();
   if (updater) header.appendChild(updater);
+}
+
+// -------------------------------------------------------------------------
+// Staff sidebar mount (replaces public navbar when an official is signed in)
+//
+// Visual cohesion with admin.html: the ticket detail page should look
+// "inside" the same product. We:
+//   1. Remove the existing <nav class="navbar"> and let the body collapse
+//      to the new shell via .has-admin-sidebar
+//   2. Insert the same .admin-sidebar / .admin-shell / .admin-header /
+//      .admin-rightrail pieces used by admin.html (without the rail
+//      cards — those don't make sense on a per-ticket page)
+//   3. Mount the existing #ticket-region inside .admin-main
+//   4. Add a "Back to dashboard" breadcrumb above the ticket content
+//
+// The sidebar is kept DOM-minimal — no tablist (this is not a tab page),
+// just the same brand + nav + account chip so the visual language is
+// consistent end-to-end.
+// -------------------------------------------------------------------------
+
+function initialsOf(name) {
+  if (!name) return '?';
+  var parts = String(name).trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+}
+
+function buildStaffSidebar(official) {
+  var aside = document.createElement('aside');
+  aside.className = 'admin-sidebar';
+  aside.id = 'admin-sidebar';
+  aside.setAttribute('aria-label', 'Primary');
+
+  // ---- Brand
+  var brand = document.createElement('div');
+  brand.className = 'admin-sidebar-brand';
+  var brandA = document.createElement('a');
+  brandA.href = 'admin.html';
+  brandA.setAttribute('aria-label', 'CivicSays dashboard home');
+  var brandImg = document.createElement('img');
+  brandImg.src = 'Logo.png';
+  brandImg.alt = '';
+  brandA.appendChild(brandImg);
+  var brandSpan = document.createElement('span');
+  brandSpan.textContent = 'CivicSays';
+  brandA.appendChild(brandSpan);
+  brand.appendChild(brandA);
+  aside.appendChild(brand);
+
+  // ---- Nav (Overview only — the per-ticket page is reached FROM Overview)
+  var nav = document.createElement('nav');
+  nav.className = 'admin-sidebar-nav';
+  nav.setAttribute('aria-label', 'Sections');
+
+  var group = document.createElement('div');
+  group.className = 'admin-sidebar-group';
+  var glbl = document.createElement('div');
+  glbl.className = 'admin-sidebar-group-label';
+  glbl.id = 'admin-nav-tickets-label-ticket';
+  glbl.textContent = 'Tickets';
+  group.appendChild(glbl);
+  var ul = document.createElement('ul');
+  ul.className = 'admin-sidebar-list';
+  ul.setAttribute('aria-labelledby', 'admin-nav-tickets-label-ticket');
+
+  var li = document.createElement('li');
+  var backLink = document.createElement('a');
+  backLink.className = 'admin-sidebar-link';
+  backLink.href = 'admin.html';
+  backLink.setAttribute('data-testid', 'nav-back-to-dashboard');
+  backLink.appendChild(icon('layout', { size: 16 }));
+  var backSpan = document.createElement('span');
+  backSpan.textContent = 'All tickets';
+  backLink.appendChild(backSpan);
+  li.appendChild(backLink);
+  ul.appendChild(li);
+  group.appendChild(ul);
+  nav.appendChild(group);
+  aside.appendChild(nav);
+
+  // ---- Account chip
+  var account = document.createElement('div');
+  account.className = 'admin-sidebar-account';
+  account.id = 'admin-sidebar-account';
+  account.setAttribute('data-testid', 'sidebar-account');
+  var info = document.createElement('div');
+  info.className = 'admin-sidebar-account-info';
+  var nm = document.createElement('div');
+  nm.className = 'admin-sidebar-account-name';
+  nm.textContent = official.full_name || 'Staff';
+  info.appendChild(nm);
+  var role = document.createElement('div');
+  role.className = 'admin-sidebar-account-role';
+  role.textContent = 'Staff Admin';
+  info.appendChild(role);
+  account.appendChild(info);
+  var out = document.createElement('button');
+  out.type = 'button';
+  out.className = 'admin-sidebar-account-out';
+  out.setAttribute('aria-label', 'Sign out');
+  out.setAttribute('data-testid', 'sidebar-signout');
+  out.appendChild(icon('logout', { size: 14 }));
+  out.addEventListener('click', async function () {
+    try {
+      await signOut();
+      window.location.replace('login.html');
+    } catch (err) {
+      toast(friendlyError(err), 'error', 5000);
+    }
+  });
+  account.appendChild(out);
+  aside.appendChild(account);
+
+  return aside;
+}
+
+function buildStaffHeader(official) {
+  var header = document.createElement('header');
+  header.className = 'admin-header';
+
+  // Hamburger (hidden by default in CSS; revealed by the media query
+  // at <= 900px).
+  var menuBtn = document.createElement('button');
+  menuBtn.type = 'button';
+  menuBtn.className = 'admin-header-menu';
+  menuBtn.setAttribute('aria-label', 'Open navigation');
+  menuBtn.setAttribute('aria-controls', 'admin-sidebar');
+  menuBtn.setAttribute('data-testid', 'admin-menu-btn');
+  menuBtn.hidden = true;
+  menuBtn.appendChild(icon('menu', { size: 18 }));
+  header.appendChild(menuBtn);
+
+  // Search — same honest stub as the dashboard (filters are not wired,
+  // but Enter produces a toast that explains the scope).
+  var search = document.createElement('div');
+  search.className = 'admin-header-search';
+  search.appendChild(icon('search', { size: 16 }));
+  var input = document.createElement('input');
+  input.type = 'search';
+  input.placeholder = 'Search tickets, residents, or ID…';
+  input.setAttribute('aria-label', 'Search tickets, residents, or ID');
+  input.id = 'admin-search';
+  input.setAttribute('data-testid', 'admin-search');
+  input.autocomplete = 'off';
+  search.appendChild(input);
+  var kbd = document.createElement('kbd');
+  kbd.className = 'kbd';
+  kbd.textContent = 'Ctrl K';
+  search.appendChild(kbd);
+  header.appendChild(search);
+
+  // Actions — bell + avatar
+  var actions = document.createElement('div');
+  actions.className = 'admin-header-actions';
+  var bell = document.createElement('button');
+  bell.type = 'button';
+  bell.className = 'admin-header-bell';
+  bell.setAttribute('aria-label', 'Notifications, 0 unread');
+  bell.setAttribute('data-testid', 'admin-bell');
+  bell.appendChild(icon('bell', { size: 16 }));
+  var bellCount = document.createElement('span');
+  bellCount.className = 'badge-count';
+  bellCount.setAttribute('aria-hidden', 'true');
+  bellCount.textContent = '0';
+  bell.appendChild(bellCount);
+  bell.addEventListener('click', function () {
+    toast('No notifications yet. Staff changes will appear here.', 'info', 3000);
+  });
+  actions.appendChild(bell);
+  var avatar = document.createElement('div');
+  avatar.className = 'admin-header-avatar';
+  avatar.id = 'admin-header-avatar';
+  avatar.setAttribute('aria-hidden', 'true');
+  avatar.textContent = initialsOf(official.full_name);
+  avatar.setAttribute('title', official.full_name || '');
+  actions.appendChild(avatar);
+  header.appendChild(actions);
+
+  return header;
+}
+
+function mountStaffSidebar(official) {
+  // Idempotent — never mount twice.
+  if (state.staffSidebar) return;
+  state.staffSidebar = true;
+
+  // 1. Tell the body to use the admin shell layout (also hides the
+  //    public navbar via the .has-admin-sidebar rule in layout.css).
+  document.body.classList.add('has-admin-sidebar');
+
+  // 2. Move the existing #ticket-region into a new .admin-shell > .admin-main
+  //    structure, sitting between the sidebar and the right rail.
+  var regionOld = document.getElementById('ticket-region');
+  var mainOld = regionOld && regionOld.closest('.page-main');
+  var pageMain = mainOld || (regionOld && regionOld.parentElement);
+  if (!pageMain) return;
+
+  // Detach the existing skeleton DOM so we can re-insert it.
+  var skeletonChildren = [];
+  if (regionOld) {
+    while (regionOld.firstChild) {
+      skeletonChildren.push(regionOld.firstChild);
+      regionOld.removeChild(regionOld.firstChild);
+    }
+  }
+
+  // Build shell
+  var shell = document.createElement('div');
+  shell.className = 'admin-shell';
+  var mainCol = document.createElement('div');
+  mainCol.className = 'admin-main';
+  mainCol.id = 'admin-main';
+  mainCol.appendChild(buildStaffHeader(official));
+
+  // Breadcrumb + page-title-style header for the ticket view
+  var page = document.createElement('main');
+  page.className = 'admin-page';
+  var pageHeader = document.createElement('div');
+  pageHeader.className = 'admin-page-header';
+  var pageHeaderLeft = document.createElement('div');
+  var crumb = document.createElement('a');
+  crumb.href = 'admin.html';
+  crumb.className = 'admin-breadcrumb';
+  crumb.setAttribute('data-testid', 'back-to-dashboard');
+  crumb.appendChild(icon('arrow-left', { size: 14 }));
+  var crumbSpan = document.createElement('span');
+  crumbSpan.textContent = 'Back to dashboard';
+  crumb.appendChild(crumbSpan);
+  pageHeaderLeft.appendChild(crumb);
+  pageHeader.appendChild(pageHeaderLeft);
+  page.appendChild(pageHeader);
+
+  // Re-insert the ticket region (now empty / cleared) so JS continues
+  // to use the same selector.
+  if (regionOld) {
+    // Re-append skeleton children for SSR fallback
+    skeletonChildren.forEach(function (n) { regionOld.appendChild(n); });
+    page.appendChild(regionOld);
+  }
+  mainCol.appendChild(page);
+  shell.appendChild(mainCol);
+
+  // 3. Build the sidebar and prepend it to the body (so it sits next
+  //    to the shell, just like on admin.html).
+  var sidebar = buildStaffSidebar(official);
+  document.body.insertBefore(sidebar, document.body.firstChild);
+
+  // 4. Move the shell in front of the now-hidden navbar (so #ticket-region
+  //    ends up nested correctly).
+  pageMain.appendChild(shell);
+
+  // 5. Hamburger wiring (same as admin.js)
+  wireStaffHamburger();
+  // 6. Ctrl+K focus
+  wireStaffSearchShortcut();
+}
+
+function wireStaffHamburger() {
+  var btn = document.querySelector('[data-testid="admin-menu-btn"]');
+  var sidebar = document.getElementById('admin-sidebar');
+  if (!btn || !sidebar) return;
+  btn.hidden = false;
+
+  // The .admin-sidebar-scrim is created lazily so we don't need to add
+  // a new element to ticket.html just for staff.
+  var scrim = document.getElementById('admin-sidebar-scrim');
+  if (!scrim) {
+    scrim = document.createElement('div');
+    scrim.className = 'admin-sidebar-scrim';
+    scrim.id = 'admin-sidebar-scrim';
+    scrim.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(scrim);
+  }
+
+  function setOpen(open) {
+    sidebar.classList.toggle('is-open', open);
+    scrim.classList.toggle('is-open', open);
+    scrim.setAttribute('aria-hidden', open ? 'false' : 'true');
+  }
+  btn.addEventListener('click', function () { setOpen(!sidebar.classList.contains('is-open')); });
+  scrim.addEventListener('click', function () { setOpen(false); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && sidebar.classList.contains('is-open')) {
+      setOpen(false);
+      btn.focus();
+    }
+  });
+}
+
+function wireStaffSearchShortcut() {
+  document.addEventListener('keydown', function (e) {
+    var k = e.key.toLowerCase();
+    if ((e.ctrlKey || e.metaKey) && k === 'k') {
+      e.preventDefault();
+      var input = document.getElementById('admin-search');
+      if (input) input.focus();
+    }
+  });
+}
+
+// -------------------------------------------------------------------------
+// Status update UI — 3-dot "More" menu
+//
+// Replaces the previous <select> + button pair with a small menu that
+// reads more like the rest of the app. The source of truth is still the
+// same set of four statuses; we just let the official click them
+// directly. A hidden <select> is also kept so the existing
+// onStatusUpdate() handler is untouched — and the form is still
+// accessible via keyboard (Enter on a row triggers the same handler).
+// -------------------------------------------------------------------------
+
+function buildStatusUpdater() {
+  if (!state.official) return null;
+
+  var wrap = document.createElement('div');
+  wrap.className = 'status-update';
+  wrap.setAttribute('data-testid', 'status-update');
+
+  // The "primary" action is the next logical status (the one the official
+  // is most likely to want). The menu surfaces all four.
+  var current = state.ticket.status;
+  var nextByStatus = {
+    pending:    'in_process',
+    in_process: 'solved',
+    hold:       'in_process',
+    solved:     'in_process',
+  };
+  var primary = nextByStatus[current] || 'in_process';
+  var primaryLabel = primary === 'in_process' ? 'Move to In Process' :
+                     primary === 'solved'    ? 'Mark as Solved' :
+                     primary === 'hold'      ? 'Put on Hold' :
+                     'Mark as Pending';
+
+  var primaryBtn = document.createElement('button');
+  primaryBtn.type = 'button';
+  primaryBtn.className = 'btn btn-primary';
+  primaryBtn.setAttribute('data-testid', 'status-primary');
+  primaryBtn.appendChild(icon('arrow-right', { size: 14 }));
+  var primarySpan = document.createElement('span');
+  primarySpan.textContent = primaryLabel;
+  primaryBtn.appendChild(primarySpan);
+  primaryBtn.addEventListener('click', function () { onStatusUpdate(primary); });
+  wrap.appendChild(primaryBtn);
+
+  // Hidden <select> — kept for parity with existing onStatusUpdate() so
+  // we don't have to refactor the RPC call.
+  var sel = document.createElement('select');
+  sel.className = 'select';
+  sel.id = 'status-select';
+  sel.setAttribute('aria-label', 'Change status');
+  sel.style.position = 'absolute';
+  sel.style.left = '-9999px';
+  Object.keys(TICKET_STATUS_LABELS).forEach(function (k) {
+    var opt = document.createElement('option');
+    opt.value = k;
+    opt.textContent = TICKET_STATUS_LABELS[k];
+    if (k === state.ticket.status) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  wrap.appendChild(sel);
+
+  // More (3-dot) menu
+  var moreBtn = document.createElement('button');
+  moreBtn.type = 'button';
+  moreBtn.className = 'btn btn-ghost icon-btn';
+  moreBtn.setAttribute('aria-label', 'More status options');
+  moreBtn.setAttribute('aria-haspopup', 'true');
+  moreBtn.setAttribute('aria-expanded', 'false');
+  moreBtn.setAttribute('data-testid', 'status-more');
+  moreBtn.appendChild(icon('more', { size: 16 }));
+  wrap.appendChild(moreBtn);
+
+  // Menu content
+  var menu = document.createElement('div');
+  menu.className = 'status-update-menu';
+  menu.setAttribute('role', 'menu');
+  menu.hidden = true;
+  menu.setAttribute('data-testid', 'status-menu');
+
+  function menuItem(label, statusKey, key) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('role', 'menuitem');
+    b.className = 'status-update-menu-item';
+    b.dataset.status = statusKey;
+    b.dataset.key = key;
+    b.textContent = label;
+    if (statusKey === current) {
+      b.classList.add('is-current');
+      b.setAttribute('aria-disabled', 'true');
+    }
+    b.addEventListener('click', function () {
+      closeMenu();
+      if (statusKey !== current) onStatusUpdate(statusKey);
+    });
+    return b;
+  }
+
+  menu.appendChild(menuItem('Mark as pending', 'pending',    'p'));
+  menu.appendChild(menuItem('Mark as in process', 'in_process', 'i'));
+  menu.appendChild(menuItem('Mark as on hold', 'hold',       'h'));
+  menu.appendChild(menuItem('Mark as solved', 'solved',     's'));
+  wrap.appendChild(menu);
+
+  moreBtn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    if (menu.hidden) openMenu(); else closeMenu();
+  });
+
+  function openMenu() {
+    menu.hidden = false;
+    moreBtn.setAttribute('aria-expanded', 'true');
+    // Position the menu under the button (a popover-style menu).
+    var rect = moreBtn.getBoundingClientRect();
+    menu.style.position = 'absolute';
+    menu.style.top = (rect.bottom + 4) + 'px';
+    menu.style.right = (window.innerWidth - rect.right) + 'px';
+    menu.style.left = 'auto';
+    state.staffMenu = { menu: menu, moreBtn: moreBtn };
+    // Outside-click + Escape close
+    setTimeout(function () {
+      document.addEventListener('click', onDocClick);
+      document.addEventListener('keydown', onDocKey);
+    }, 0);
+  }
+  function closeMenu() {
+    menu.hidden = true;
+    moreBtn.setAttribute('aria-expanded', 'false');
+    document.removeEventListener('click', onDocClick);
+    document.removeEventListener('keydown', onDocKey);
+    state.staffMenu = null;
+  }
+  function onDocClick(e) {
+    if (state.staffMenu && !state.staffMenu.menu.contains(e.target) && e.target !== state.staffMenu.moreBtn) {
+      closeMenu();
+    }
+  }
+  function onDocKey(e) {
+    if (e.key === 'Escape') { closeMenu(); state.staffMenu.moreBtn.focus(); }
+  }
+
+  return wrap;
+}
+
+/**
+ * Status update handler — same as before but takes the target status
+ * directly instead of reading from a <select>. The hidden <select> in
+ * the new UI is kept in sync as a side-effect so any test that reads
+ * #status-select still gets the right value.
+ */
+async function onStatusUpdate(newStatus) {
+  if (state.statusPosting) return;
+  if (newStatus === state.ticket.status) {
+    toast('That is already the current status.', 'info', 1800);
+    return;
+  }
+  state.statusPosting = true;
+  // Keep hidden <select> in sync
+  var sel = document.getElementById('status-select');
+  if (sel) sel.value = newStatus;
+  var busyBtn = document.querySelector('[data-testid="status-primary"]');
+  var restore = busyBtn ? buttonBusy(busyBtn) : function () {};
+  if (busyBtn) busyBtn.setAttribute('aria-busy', 'true');
+  try {
+    var c = await getClient();
+    await unwrap(
+      c.from(T.TICKETS).update({ status: newStatus }).eq('id', state.ticket.id)
+    );
+    // The DB trigger inserts a history row + a system comment. Realtime
+    // channels will fire and re-render the header + comments thread.
+    toast('Status updated to ' + ticketStatusLabel(newStatus), 'success', 1800);
+  } catch (err) {
+    toast(friendlyError(err), 'error', 6000);
+  } finally {
+    if (busyBtn) busyBtn.removeAttribute('aria-busy');
+    restore();
+    state.statusPosting = false;
+  }
 }
 
 // -------------------------------------------------------------------------
@@ -1510,37 +1967,9 @@ async function onCommentSubmit(form, btn, ticket) {
 }
 
 // -------------------------------------------------------------------------
-// Status update (official only)
+// Status update (official only) — the new menu-driven version is
+// defined alongside the staff sidebar block further up in the file.
 // -------------------------------------------------------------------------
-
-async function onStatusUpdate(sel, btn) {
-  if (state.statusPosting) return;
-  var newStatus = sel.value;
-  if (newStatus === state.ticket.status) {
-    toast('That is already the current status.', 'info', 1800);
-    return;
-  }
-  state.statusPosting = true;
-  btn.setAttribute('aria-busy', 'true');
-  var restore = buttonBusy(btn);
-  try {
-    var c = await getClient();
-    await unwrap(
-      c.from(T.TICKETS).update({ status: newStatus }).eq('id', state.ticket.id)
-    );
-    // The DB trigger inserts a history row + a system comment. Realtime
-    // channels will fire and re-render the header + comments thread.
-    // We don't optimistically update state.ticket.status; the channel
-    // will deliver the new row shortly.
-    toast('Status updated to ' + ticketStatusLabel(newStatus), 'success', 1800);
-  } catch (err) {
-    toast(friendlyError(err), 'error', 6000);
-  } finally {
-    btn.removeAttribute('aria-busy');
-    restore();
-    state.statusPosting = false;
-  }
-}
 
 // -------------------------------------------------------------------------
 // Identity cache (sessionStorage, dies on tab close)

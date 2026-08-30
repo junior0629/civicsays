@@ -165,37 +165,47 @@ After a security audit applying the lenses from `backend-architect.md`, `fronten
 
 ---
 
+## Phase 5b — Staff Dashboard Redesign (✓)
+
+Three-column shell: persistent left sidebar, fluid center (KPI cards + tabbed Tickets/Inquiries + table/cards), sticky right rail (Ticket overview legend + Recent activity feed). `style/admin.css` is the new home for all admin styles. `js/admin.js` rewrites the dashboard for the new layout; `js/ticket.js` mounts the same staff sidebar when an official opens a ticket, adds a "Back to dashboard" breadcrumb, and replaces the status `<select>` with a primary "Move to next status" button + a 3-dot "More" menu. `supabase/migrations/0010_staff_activity_rpc.sql` adds the merged activity feed (status transitions + official replies). Realtime, Ctrl K, mobile drawer, and table↔cards swap are all wired. Search, notifications, and "New ticket" are honest stubs with toasts explaining why.
+
+**Phase 5b demo**: sign in as the seeded test official → land on `/admin.html` with a dark three-column dashboard, real KPI counts, a ticket table that filters by status/type, a right-rail "Recent activity" feed that updates when a status changes. Open any ticket → staff sidebar mounts, breadcrumb works, 3-dot status menu flips the status and the dashboard activity feed updates within ~1s. Resize to 720px → table becomes cards; resize to 900px → sidebar collapses into a hamburger drawer.
+
+---
+
 ## Phase 6 — Admin Dashboard Shell
 
-- [ ] `admin.html` — two-panel layout (inquiries left 340px, tickets right fluid)
-- [ ] `js/admin.js`:
-  - [ ] Fetch + render stats grid: Total, Pending, In Process, On Hold, Solved
-  - [ ] Fetch + render ticket list (sorted by `created_at DESC`, paginated 50 at a time)
-  - [ ] Status filter tabs (All / Pending / In Process / On Hold / Solved) with counts
-  - [ ] Free-text search (ID, resident name, email, title) with debounce
-  - [ ] Click ticket → navigate to `ticket.html?id=...`
-  - [ ] Inquiries panel: 3 counters (Waiting / Active / Resolved)
-  - [ ] Inquiries list (scrollable, most recent first)
-  - [ ] Empty states for both panels
-  - [ ] Loading skeletons on first load
-- [ ] Realtime subscription: new inquiries appear in panel instantly
-- [ ] Inquiries panel: click an inquiry opens chat overlay (skeleton, real impl in Phase 9)
+- [x] `admin.html` — three-column shell (sidebar 240px + fluid center + right rail 280px; right rail collapses <1200px; sidebar becomes drawer <900px)
+- [x] `js/admin.js`:
+  - [x] Fetch + render stats grid: Total, Pending, In Process, On Hold, Solved (real counts, no fake trend)
+  - [x] Fetch + render ticket list (table on desktop, cards on mobile; both share the same row data + status badges)
+  - [x] Status filter pills (All / Pending / In Process / On Hold / Solved) with counts
+  - [x] Kind filter pills (All / Request / Complaint)
+  - [x] Free-text search (ID / title / resident) on the visible list (client-side; honest toast on submit)
+  - [x] Click ticket row → navigate to `ticket.html?id=…`
+  - [x] Inquiries panel: counters (Waiting / Active / Resolved) + table/cards
+  - [x] Inquiries list, most recent first
+  - [x] Empty / loading / error states for both panels
+- [x] Realtime subscription: ticket + inquiry changes re-fetch (debounced 250ms)
+- [x] Right-rail "Recent activity" feed from `list_recent_staff_activity` RPC, live-updated
+- [x] Right-rail "Ticket overview" legend + bars (no fake donut, empty states dimmed)
 
-**Phase 6 demo**: log in, see stats reflecting Phase 3 ticket (e.g. 1 pending). Filter by status works. Search works. New inquiry from resident (Phase 8) appears without refresh.
+**Phase 6 demo**: log in, see stats reflecting the seeded 10 demo tickets (4 pending, 2 in process, 2 hold, 2 solved). Filter by status works. New tickets / status changes appear without refresh via Realtime. Right-rail activity feed reflects the most recent status change + official reply.
 
 ---
 
 ## Phase 7 — Ticket Management (Official)
 
-- [ ] On `ticket.html`, when official is authed:
-  - [ ] Status selector dropdown + "Update Status" button in info section
-  - [ ] On status change: UPDATE `tickets.status` → trigger fires → history row + system comment auto-created
-  - [ ] Optimistic UI update (assume success, rollback on error)
-- [ ] Official comment form: pre-filled name from session, "Government Official" badge on posted comments
-- [ ] Status history timeline visible (from `ticket_status_history` table)
-- [ ] Disable status control if ticket is `solved` (or allow re-open with explicit confirmation)
-- [ ] Show "Last updated" timestamp
-- [ ] Visual indication when ticket was updated by which official (in history)
+- [x] On `ticket.html`, when official is authed:
+  - [x] Status updater with a primary "Move to next status" button + a 3-dot "More" menu for the other three transitions (the hidden `<select>` is kept in sync as a fallback + for tests)
+  - [x] On status change: UPDATE `tickets.status` → trigger fires → history row + system comment auto-created
+  - [x] Realtime: ticket + history + comments channels re-render the relevant pieces
+- [x] Official comment form: pre-filled name from session, "Government Official" badge on posted comments
+- [x] Status history timeline visible (from `ticket_status_history` table)
+- [x] Disable status control if ticket is `solved` (the 3-dot menu marks the current status as `aria-disabled` and ignores clicks)
+- [x] Show "Last updated" timestamp
+- [x] Visual indication when ticket was updated by which official (in history)
+- [x] Staff sidebar mounts on `ticket.html` (replaces the public navbar) + "Back to dashboard" breadcrumb
 
 **Phase 7 demo**: open ticket as official, change status to `in_process` → history row appears → system comment appears in thread. Back to resident browser → refresh → see updated status.
 

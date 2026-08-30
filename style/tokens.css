@@ -176,4 +176,15 @@
   --z-overlay: 80;
   --z-modal:   100;
   --z-toast:   120;
+
+  /* -------------------------------------------------------------------------
+     Admin layout — three-column dashboard shell
+     Sidebar + content + right rail. Right rail collapses below 1200px;
+     sidebar collapses into a drawer below 900px.
+     ------------------------------------------------------------------------- */
+  --sidebar-width:        240px;
+  --rightrail-width:      280px;
+  --rightrail-breakpoint: 1200px;   /* hides below */
+  --admin-header-height:  64px;
+  --admin-content-max:    1440px;
 }

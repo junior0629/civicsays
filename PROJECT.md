@@ -2,7 +2,7 @@
 
 A transparent civic engagement platform that connects residents with their local government.
 
-> **Project state:** building in public. Phases 0–2.5 (design system, backend, landing, polish) are complete. The Submit Ticket flow is next — see [CHECKLIST.md](CHECKLIST.md) for the full task list.
+> **Project state:** building in public. Phases 0–5b (design system, backend, landing, submit, track, staff login, staff dashboard redesign) are complete. See [CHECKLIST.md](CHECKLIST.md) for the full task list.
 
 ## What residents can do
 
@@ -14,7 +14,9 @@ A transparent civic engagement platform that connects residents with their local
 ## What officials can do
 
 - Sign in to a private dashboard
-- See a queue of all tickets, filter by status, search by ID/name/email/title
+- See a three-column dashboard: a persistent left sidebar (Overview / All tickets / Inquiries / Recent updates), a fluid center with KPI cards, a filterable ticket table, and a right rail with a "Ticket overview" status breakdown + a "Recent activity" feed that updates live
+- Filter by status or type, search by ID/title/resident (client-side)
+- Open a ticket to see full detail — the ticket page mounts the same staff sidebar, shows a "Back to dashboard" breadcrumb, and exposes a primary "Move to next status" button + a 3-dot menu for the other transitions
 - Update ticket status (pending → in process → on hold → solved) with full history
 - Accept resident inquiries and chat with them in real time
 - Resolve inquiries and post closing messages
@@ -80,12 +82,20 @@ civicsays/
 │
 ├── supabase/
 │   ├── README.md             # how to apply migrations
+│   ├── dev/                  # one-paste wrappers for migrations
+│   │   ├── 0001_apply_0009_and_seed_tickets.sql
+│   │   └── 0002_apply_0010.sql
 │   └── migrations/
 │       ├── 0001_init.sql     # schema (6 tables, indexes, CHECK constraints)
 │       ├── 0002_rls.sql      # row-level security + RPCs
 │       ├── 0003_triggers.sql # status history + system comments
 │       ├── 0004_storage.sql  # ticket-attachments bucket
-│       └── 0005_seed.sql     # test official + Realtime publication
+│       ├── 0005_seed.sql     # test official + Realtime publication
+│       ├── 0006_video_pla…   # multi-platform video support
+│       ├── 0007_drop_video_… # cleanup
+│       ├── 0008_ticket_addr… # resident_address on tickets
+│       ├── 0009_staff_listing_rpc.sql  # Phase 5b — list_staff_tickets/inquiries
+│       └── 0010_staff_activity_rpc.sql # Phase 5b — list_recent_staff_activity
 │
 ├── scripts/
 │   ├── serve.js              # local dev server

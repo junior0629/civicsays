@@ -45,7 +45,7 @@ describe('buildTicketCard', function () {
 
   it('includes a status badge with the correct label and class', function () {
     var card = buildTicketCard(row);
-    var badge = card.querySelector('.badge');
+    var badge = card.querySelector('.badge-inline');
     expect(badge).toBeTruthy();
     expect(badge.classList.contains(statusBadgeClass('ticket', 'pending'))).toBe(true);
     expect(badge.textContent).toContain(ticketStatusLabel('pending'));
