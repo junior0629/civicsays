@@ -67,6 +67,30 @@ function withTimeout(promise, ms, label) {
 // network doesn't park the page.
 var RPC_TIMEOUT_MS = 10000;
 
+/**
+ * Translate a raw RPC/Supabase error into something a staff user can
+ * act on. The "function not in schema cache" case is the common one
+ * after a fresh migration — make it actionable instead of dumping the
+ * raw Supabase error.
+ */
+function friendlyErrorForStaff(err, what) {
+  var msg = String(err || '').toLowerCase();
+  if (/could not find the function|schema cache|pgrst202/.test(msg)) {
+    return 'The dashboard is missing a recent database update. ' +
+      'Please ask your administrator to run supabase/migrations/0009_staff_listing_rpc.sql ' +
+      'in the Supabase SQL editor, then refresh this page.';
+  }
+  if (/timed out/.test(msg)) {
+    return 'The request to load ' + what + ' took too long. ' +
+      'Check your network connection and refresh.';
+  }
+  if (/forbidden|42501/.test(msg)) {
+    return 'You do not have permission to view ' + what + '. ' +
+      'Sign out and sign back in, or contact your administrator.';
+  }
+  return 'Could not load ' + what + ': ' + String(err || 'unknown error');
+}
+
 // -------------------------------------------------------------------------
 // Entry
 // -------------------------------------------------------------------------
@@ -316,7 +340,7 @@ function renderTicketsList() {
     e.style.padding = 'var(--space-6)';
     e.style.textAlign = 'center';
     e.style.color = 'var(--status-error)';
-    e.textContent = 'Could not load tickets: ' + state.error.tickets;
+    e.textContent = friendlyErrorForStaff(state.error.tickets, 'tickets');
     list.appendChild(e);
     return;
   }
@@ -477,7 +501,7 @@ function renderInquiriesList() {
     e.style.padding = 'var(--space-6)';
     e.style.textAlign = 'center';
     e.style.color = 'var(--status-error)';
-    e.textContent = 'Could not load inquiries: ' + state.error.inquiries;
+    e.textContent = friendlyErrorForStaff(state.error.inquiries, 'inquiries');
     list.appendChild(e);
     return;
   }
