@@ -29,14 +29,13 @@ create or replace function public.list_staff_tickets(
   p_limit         int  default 50
 )
 returns table (
-  id                   text,
-  status               text,
-  kind                 text,
-  title                text,
-  resident_name        text,
-  created_at           timestamptz,
-  resolved_at          timestamptz,
-  assigned_official_id uuid
+  id              text,
+  status          text,
+  kind            text,
+  title           text,
+  resident_name   text,
+  created_at      timestamptz,
+  resolved_at     timestamptz
 )
 language plpgsql stable security definer set search_path = public
 as $$
@@ -55,8 +54,7 @@ begin
       t.title,
       t.resident_name,
       t.created_at,
-      t.resolved_at,
-      t.assigned_official_id
+      t.resolved_at
     from public.tickets t
     where (p_status_filter is null or t.status   = p_status_filter)
       and (p_kind_filter   is null or t.kind     = p_kind_filter)
