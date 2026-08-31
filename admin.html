@@ -137,26 +137,36 @@
         </div>
 
         <!--
-          Ticket Trend card — 7-day line chart of ticket volume.
-          Driven by count_tickets_by_day() RPC; the body is filled
-          by renderTrendChart() in js/admin.js. The range chip is
-          a single-value honest stub for now (no other ranges).
+          Trend + Donut row — the 7-day line chart and the "All
+          tickets" donut sit side-by-side as the visual centerpiece
+          of the dashboard. The donut legend is clickable — clicking
+          a status filters the table below. The Recent activity
+          feed stays in the right rail.
         -->
-        <section class="admin-trend-card glass-card compact" aria-labelledby="admin-trend-title">
-          <header class="admin-trend-head">
-            <h2 id="admin-trend-title" class="admin-trend-title">Ticket Trend</h2>
-            <button type="button" class="admin-trend-range" id="admin-trend-range"
-                    data-testid="trend-range"
-                    aria-haspopup="listbox" aria-expanded="false">
-              <span>Last 7 days</span>
-              <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-chevron-down"></use></svg>
-            </button>
-          </header>
-          <div class="admin-trend-body" id="admin-trend-body" role="img"
-               aria-label="Loading ticket trend">
-            <!-- filled by renderTrendChart() in js/admin.js -->
-          </div>
-        </section>
+        <div class="admin-trend-row">
+          <section class="admin-trend-card glass-card compact" aria-labelledby="admin-trend-title">
+            <header class="admin-trend-head">
+              <h2 id="admin-trend-title" class="admin-trend-title">Ticket Trend</h2>
+              <button type="button" class="admin-trend-range" id="admin-trend-range"
+                      data-testid="trend-range"
+                      aria-haspopup="listbox" aria-expanded="false">
+                <span>Last 7 days</span>
+                <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-chevron-down"></use></svg>
+              </button>
+            </header>
+            <div class="admin-trend-body" id="admin-trend-body" role="img"
+                 aria-label="Loading ticket trend">
+              <!-- filled by renderTrendChart() in js/admin.js -->
+            </div>
+          </section>
+
+          <section class="admin-rail-card admin-overview-card" aria-labelledby="rail-overview-title">
+            <h2 id="rail-overview-title" class="admin-rail-card-title">All tickets</h2>
+            <div class="rail-overview-list" id="rail-overview-body" data-testid="rail-overview">
+              <!-- donut + clickable legend filled by js/admin.js -->
+            </div>
+          </section>
+        </div>
 
         <div class="admin-tabs" role="tablist" aria-label="Sections">
           <button type="button" class="admin-tab is-active" role="tab" id="tab-tickets"
@@ -240,12 +250,6 @@
     </div>
 
     <aside class="admin-rightrail" aria-label="At a glance" id="admin-rightrail">
-      <section class="admin-rail-card" aria-labelledby="rail-overview-title">
-        <h2 id="rail-overview-title" class="admin-rail-card-title">All tickets</h2>
-        <div class="rail-overview-list" id="rail-overview-body" data-testid="rail-overview">
-          <!-- donut + legend filled by js/admin.js -->
-        </div>
-      </section>
       <section class="admin-rail-card" aria-labelledby="rail-activity-title" id="activity">
         <h2 id="rail-activity-title" class="admin-rail-card-title">Recent activity</h2>
         <ul class="admin-activity-list" id="rail-activity-body" data-testid="rail-activity">

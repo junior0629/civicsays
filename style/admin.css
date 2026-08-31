@@ -600,6 +600,36 @@
   text-anchor: middle;
 }
 
+/* Trend + Donut row — the 7-day line chart and the "All tickets"
+   donut sit side-by-side. On narrow viewports the donut stacks
+   under the trend card. Both surfaces use the same glass-card
+   compact treatment so they read as one row. */
+.admin-trend-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+.admin-trend-row > .admin-trend-card { margin-bottom: 0; }
+
+@media (max-width: 900px) {
+  .admin-trend-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Donut card in its new home next to the trend card. Reuses
+   .admin-rail-card for the surface + title styles; .admin-overview-card
+   tweaks the inner padding so the donut + legend sit comfortably
+   when the column is narrow. */
+.admin-overview-card {
+  /* Center the donut in its column at narrow widths */
+  align-items: center;
+}
+.admin-overview-card .rail-overview-list {
+  width: 100%;
+}
+
 /* -------------------------------------------------------------------------
    Tabs
    ------------------------------------------------------------------------- */
