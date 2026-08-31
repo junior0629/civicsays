@@ -606,7 +606,11 @@
    compact treatment so they read as one row. */
 .admin-trend-row {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  /* Trend card gets the lion's share; the donut+legend card gets
+     enough room for the 120px donut + the legend's status labels
+     (e.g. "In Process" + count). minmax(0, ...) prevents the long
+     SVG from forcing horizontal overflow when the column shrinks. */
+  grid-template-columns: minmax(0, 1.6fr) minmax(360px, 1fr);
   gap: var(--space-4);
   margin-bottom: var(--space-6);
 }
@@ -621,10 +625,10 @@
 /* Donut card in its new home next to the trend card. Reuses
    .admin-rail-card for the surface + title styles; .admin-overview-card
    tweaks the inner padding so the donut + legend sit comfortably
-   when the column is narrow. */
+   when the column is narrow. The donut + legend sit in a single
+   row inside the card (see .rail-overview-donut above). */
 .admin-overview-card {
-  /* Center the donut in its column at narrow widths */
-  align-items: center;
+  align-items: stretch;
 }
 .admin-overview-card .rail-overview-list {
   width: 100%;
@@ -950,10 +954,17 @@ button.rail-overview-row[disabled] { cursor: not-allowed; }
    apply — we only replaced the bar portion of the row. */
 .rail-overview-donut {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   gap: var(--space-4);
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-2);
+}
+.rail-overview-donut > .rail-overview-donut-svg {
+  flex: 0 0 auto;
+}
+.rail-overview-donut > .rail-overview-list {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .rail-overview-donut-svg {
