@@ -54,6 +54,17 @@ var state = {
   kindFilter: '',
   inqStatusFilter: '',
   assigneeFilter: '',
+  // Date filter — `datePreset` is one of '' (Any), 'today',
+  // 'yesterday', 'last_week', 'last_month', 'this_year',
+  // 'last_year', 'custom'. When `datePreset` is 'custom', the user
+  // picks the actual from/to via the two <input type="date"> fields
+  // and those values land here as `dateFrom` / `dateTo` (ISO yyyy-mm-dd
+  // strings). For every preset other than 'custom', the same two
+  // fields are computed by `resolveDatePreset()` so the RPC always
+  // receives real from/to values (no 'preset' magic on the server).
+  datePreset: '',
+  dateFrom: '',
+  dateTo: '',
   // Live search query — shared by the header search input and the
   // filter-row search input so they stay in sync. Cleared by
   // wireClearAllFilters.
@@ -424,17 +435,135 @@ function wireFilterRow() {
       loadTickets();
     });
   }
-  // Date — honest stub. The only option is "Any date" (value=""),
-  // but if the user changes the selection we toast the same
-  // "coming soon" message as the trend range chip from Change 1.
+  // Date — 8-option <select> (Any / Today / Yesterday / Last week /
+  // Last month / This year / Last year / Custom…). For every
+  // non-custom preset we resolve the actual from/to UTC date strings
+  // up front so the server always gets real p_from_date / p_to_date
+  // params (no 'preset' magic on the server). For "Custom…" we
+  // reveal two <input type="date"> fields and read their values.
   var dateSel = document.getElementById('admin-date-select');
+  var rangeWrap = document.getElementById('admin-date-range');
+  var fromInput = document.getElementById('admin-date-from');
+  var toInput   = document.getElementById('admin-date-to');
+  function showRange(show) {
+    if (!rangeWrap) return;
+    if (show) rangeWrap.removeAttribute('hidden');
+    else      rangeWrap.setAttribute('hidden', '');
+  }
+  function applyDateSelection(triggerLoad) {
+    var v = (dateSel && dateSel.value) || '';
+    state.datePreset = v;
+    if (!v) {
+      // Any date
+      state.dateFrom = '';
+      state.dateTo   = '';
+      showRange(false);
+    } else if (v === 'custom') {
+      showRange(true);
+      // Don't refetch until at least one of the two custom inputs has
+      // a value — keeps the table from going empty while the user is
+      // mid-typing.
+      var f = (fromInput && fromInput.value) || '';
+      var t = (toInput   && toInput.value)   || '';
+      if (!f && !t) return;
+      if (f && t && f > t) {
+        // Bad range — swap silently rather than toasting on every
+        // keystroke. The min/max attributes on the inputs catch the
+        // common case before this ever runs.
+        var tmp = f; f = t; t = tmp;
+        if (fromInput) fromInput.value = f;
+        if (toInput)   toInput.value   = t;
+      }
+      state.dateFrom = f;
+      state.dateTo   = t;
+    } else {
+      var r = resolveDatePreset(v);
+      state.dateFrom = r.from;
+      state.dateTo   = r.to;
+      showRange(false);
+    }
+    if (triggerLoad) {
+      loadTickets();
+      updateClearAllVisibility();
+    }
+  }
   if (dateSel) {
-    dateSel.addEventListener('change', function () {
-      // Always reset to "Any date" since there are no real options
-      // yet — keeps the dropdown honest about its state.
-      dateSel.value = '';
-      toast('More date options coming soon.', 'info', 2500);
+    dateSel.addEventListener('change', function () { applyDateSelection(true); });
+  }
+  if (fromInput) {
+    fromInput.addEventListener('change', function () {
+      // Keep `to` >= `from` in the picker.
+      if (toInput && fromInput.value && toInput.value && fromInput.value > toInput.value) {
+        toInput.value = fromInput.value;
+      }
+      applyDateSelection(true);
     });
+  }
+  if (toInput) {
+    toInput.addEventListener('change', function () {
+      if (fromInput && toInput.value && fromInput.value && toInput.value < fromInput.value) {
+        fromInput.value = toInput.value;
+      }
+      applyDateSelection(true);
+    });
+  }
+}
+
+// Resolve a date preset key to a { from, to } pair of UTC yyyy-mm-dd
+// strings. The boundaries are UTC day boundaries (matches the Ticket
+// Trend chart's `(created_at at time zone 'UTC')::date` bucketing so
+// the count above and the filtered list below agree exactly).
+//
+//   today       — the current UTC day, both ends equal
+//   yesterday   — the previous UTC day, both ends equal
+//   last_week   — the 7 days ending yesterday (i.e. the last full
+//                 week, NOT including today)
+//   last_month  — the previous UTC calendar month (1st through last
+//                 day, neither including today)
+//   this_year   — Jan 1 of this UTC year .. today
+//   last_year   — Jan 1 .. Dec 31 of the previous UTC year
+//
+// Returns null for any unknown key (the caller should fall back to
+// "no filter").
+export function resolveDatePreset(key) {
+  // Build "now" as a UTC date — Date.prototype.getUTCHours etc.
+  // give us the UTC clock without timezone shenanigans.
+  var now = new Date();
+  var y = now.getUTCFullYear();
+  var m = now.getUTCMonth(); // 0-based
+  var d = now.getUTCDate();
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+  function isoDate(yy, mm, dd) { return yy + '-' + pad(mm + 1) + '-' + pad(dd); }
+  function daysInMonth(yy, mm) {
+    // mm is 0-based. Day 0 of the NEXT month = last day of THIS month.
+    return new Date(Date.UTC(yy, mm + 1, 0)).getUTCDate();
+  }
+  switch (key) {
+    case 'today':     return { from: isoDate(y, m, d),     to: isoDate(y, m, d) };
+    case 'yesterday': {
+      var dt = new Date(Date.UTC(y, m, d - 1));
+      return { from: isoDate(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate()),
+               to:   isoDate(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate()) };
+    }
+    case 'last_week': {
+      // 7 days ending yesterday (i.e. yesterday minus 6 .. yesterday)
+      var end = new Date(Date.UTC(y, m, d - 1));
+      var start = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate() - 6));
+      return { from: isoDate(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()),
+               to:   isoDate(end.getUTCFullYear(),   end.getUTCMonth(),   end.getUTCDate()) };
+    }
+    case 'last_month': {
+      // Previous UTC calendar month. Month index -1 wraps correctly
+      // (new Date(Date.UTC(y, -1, 1)) = December of previous year).
+      var py = y;
+      var pm = m - 1;
+      if (pm < 0) { pm = 11; py = py - 1; }
+      var dim = daysInMonth(py, pm);
+      return { from: isoDate(py, pm, 1), to: isoDate(py, pm, dim) };
+    }
+    case 'this_year': return { from: isoDate(y, 0, 1), to: isoDate(y, m, d) };
+    case 'last_year': return { from: isoDate(y - 1, 0, 1), to: isoDate(y - 1, 11, 31) };
+    default: return null;
   }
 }
 
@@ -478,6 +607,9 @@ function wireClearAllFilters() {
       state.statusFilter   ||
       state.kindFilter     ||
       state.assigneeFilter ||
+      state.datePreset     ||
+      state.dateFrom       ||
+      state.dateTo         ||
       state.searchQuery;
     if (!anyActive) return;
     // Reset state. The dropdowns are reset by setting .value = ''
@@ -487,15 +619,24 @@ function wireClearAllFilters() {
     state.statusFilter   = '';
     state.kindFilter     = '';
     state.assigneeFilter = '';
+    state.datePreset     = '';
+    state.dateFrom       = '';
+    state.dateTo         = '';
     state.searchQuery    = '';
     var statusSel   = document.getElementById('admin-status-select');
     var kindSel     = document.getElementById('admin-kind-select');
     var assigneeSel = document.getElementById('admin-assignee-select');
     var dateSel     = document.getElementById('admin-date-select');
+    var rangeWrap   = document.getElementById('admin-date-range');
+    var fromInput   = document.getElementById('admin-date-from');
+    var toInput     = document.getElementById('admin-date-to');
     if (statusSel)   statusSel.value   = '';
     if (kindSel)     kindSel.value     = '';
     if (assigneeSel) assigneeSel.value = '';
     if (dateSel)     dateSel.value     = '';
+    if (fromInput)   fromInput.value   = '';
+    if (toInput)     toInput.value     = '';
+    if (rangeWrap)   rangeWrap.setAttribute('hidden', '');
     syncRowSearchFromState();
     syncHeaderSearchFromState();
     // Donut legend sync.
@@ -516,6 +657,9 @@ function updateClearAllVisibility() {
     state.statusFilter   ||
     state.kindFilter     ||
     state.assigneeFilter ||
+    state.datePreset     ||
+    state.dateFrom       ||
+    state.dateTo         ||
     state.searchQuery
   );
   if (anyActive) link.removeAttribute('hidden');
@@ -772,6 +916,8 @@ async function loadTickets() {
       p_status_filter:   state.statusFilter   || null,
       p_kind_filter:     state.kindFilter     || null,
       p_assignee_filter: state.assigneeFilter || null,
+      p_from_date:       state.dateFrom        || null,
+      p_to_date:         state.dateTo          || null,
       p_limit: 50,
     });
     var countRpc   = c.rpc('count_tickets_by_status');

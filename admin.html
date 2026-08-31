@@ -240,8 +240,38 @@
               <span class="filter-label">Date</span>
               <select id="admin-date-select" data-testid="filter-date-select" aria-label="Filter by date">
                 <option value="" data-testid="filter-date">Any date</option>
+                <option value="today">Today</option>
+                <option value="yesterday">Yesterday</option>
+                <option value="last_week">Last week</option>
+                <option value="last_month">Last month</option>
+                <option value="this_year">This year</option>
+                <option value="last_year">Last year</option>
+                <option value="custom">Custom…</option>
               </select>
             </label>
+
+            <!--
+              Custom range inputs — shown only when the Date select is
+              set to "Custom…". Both inputs use the native <input
+              type="date"> (calendar picker on supported browsers) and
+              send their values to list_staff_tickets as p_from_date /
+              p_to_date. The `min`/`max` constraints on the To input
+              keep the range well-formed (can't end before it starts).
+            -->
+            <div class="admin-filter-range" id="admin-date-range"
+                 data-testid="filter-date-range" hidden>
+              <label class="admin-filter-range-field">
+                <span class="filter-label">From</span>
+                <input type="date" id="admin-date-from" data-testid="filter-date-from"
+                       aria-label="Custom range from" />
+              </label>
+              <span class="admin-filter-range-sep" aria-hidden="true">→</span>
+              <label class="admin-filter-range-field">
+                <span class="filter-label">To</span>
+                <input type="date" id="admin-date-to" data-testid="filter-date-to"
+                       aria-label="Custom range to" />
+              </label>
+            </div>
 
             <a href="#" class="admin-filters-clear" id="admin-filters-clear"
                data-testid="filters-clear" hidden>Clear all</a>

@@ -9,8 +9,9 @@
 --   2. `tickets_assigned_official_idx` (index for the aggregate RPC)
 --   3. `count_tickets_by_assignee()` — aggregate, no LIMIT
 --   4. `list_staff_tickets` — `create or replace` adds the new
---      `assigned_official_id` + `assigned_official_name` columns and
---      the new `p_assignee_filter` parameter.
+--      `assigned_official_id` + `assigned_official_name` columns, the
+--      new `p_assignee_filter` parameter, and the new `p_from_date` +
+--      `p_to_date` parameters for the Date filter.
 --
 -- IMPORTANT: Supabase Studio wraps multi-statement scripts in a
 -- transaction. If any statement in the script raises an error, the
@@ -87,6 +88,8 @@ create or replace function public.list_staff_tickets(
   p_status_filter    text default null,
   p_kind_filter      text default null,
   p_assignee_filter  text default null,
+  p_from_date        text default null,
+  p_to_date          text default null,
   p_limit            int  default 50
 )
 returns table (
@@ -130,12 +133,14 @@ begin
         or (v_assignee_filter = 'unassigned' and t.assigned_official_id is null)
         or (v_assignee_filter <> 'unassigned' and t.assigned_official_id = v_assignee_filter::uuid)
       )
+      and (p_from_date is null or t.created_at >= p_from_date::date)
+      and (p_to_date   is null or t.created_at <  (p_to_date::date + interval '1 day'))
     order by t.created_at desc
     limit v_limit;
 end;
 $$;
 
-grant execute on function public.list_staff_tickets(text, text, text, int) to authenticated;
+grant execute on function public.list_staff_tickets(text, text, text, text, text, int) to authenticated;
 
-comment on function public.list_staff_tickets(text, text, text, int) is
-  'Staff-only list of tickets with optional status, kind, and assignee filters. LIMIT clamped to 1-100. Assignee: null=all, ''unassigned''=NULL bucket, otherwise=uuid.';
+comment on function public.list_staff_tickets(text, text, text, text, text, int) is
+  'Staff-only list of tickets with optional status, kind, assignee, and date filters. LIMIT clamped to 1-100. Assignee: null=all, ''unassigned''=NULL bucket, otherwise=uuid. Date: both null=no filter, p_from_date inclusive, p_to_date inclusive (full day via to_date+1day comparison).';

@@ -1218,6 +1218,9 @@ button.rail-overview-row[disabled] { cursor: not-allowed; }
      "Status" / "Type" / etc. caption with a native <select>. The
      <select> is restyled to match the dashboard's dark surfaces.
    - .admin-filters-clear is the right-aligned "Clear all" link.
+   - .admin-filter-range is the custom From → To inputs that appear
+     inline when the Date <select> is set to "Custom…". Hidden by
+     default (the [hidden] attribute removes it from layout).
    - .admin-table-cell-assignee is the new table column; the
      .is-unassigned modifier renders the muted "Unassigned" text.
 */
@@ -1357,6 +1360,66 @@ button.rail-overview-row[disabled] { cursor: not-allowed; }
   outline-offset: 2px;
 }
 
+/* Custom date range — two <input type="date"> fields + a "→"
+   separator that appear inline when the Date <select> is "Custom…".
+   Matches the .admin-filter-select shape so the row stays visually
+   consistent; both fields use the native date picker (calendar UI
+   on supported browsers, dd/mm/yyyy fallback elsewhere). */
+.admin-filter-range {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 0 0 auto;
+}
+.admin-filter-range-field {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 36px;
+  padding: 0 var(--space-2);
+  background: var(--glass-input);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  color-scheme: dark;
+  accent-color: var(--accent);
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+.admin-filter-range-field:focus-within { border-color: var(--accent); }
+.admin-filter-range-field .filter-label {
+  font-size: 10px;
+  font-weight: var(--fw-medium);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+}
+.admin-filter-range-field input {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  font: var(--fw-regular) var(--fs-sm)/1 var(--font-sans);
+  color: var(--text-primary);
+  color-scheme: dark;
+  padding: 0;
+  min-width: 110px;
+}
+.admin-filter-range-field input:focus { outline: 0; }
+.admin-filter-range-field input::-webkit-calendar-picker-indicator {
+  filter: invert(0.8) opacity(0.7);
+  cursor: pointer;
+}
+.admin-filter-range-field input:focus::-webkit-calendar-picker-indicator {
+  filter: invert(0.9) opacity(1);
+}
+.admin-filter-range-field input::placeholder { color: var(--text-muted); }
+.admin-filter-range-sep {
+  font: var(--fw-medium) var(--fs-sm)/1 var(--font-sans);
+  color: var(--text-muted);
+  padding: 0 var(--space-1);
+}
+
 /* Assignee column in the table */
 .admin-table-cell-assignee {
   max-width: 180px;
@@ -1379,6 +1442,8 @@ button.rail-overview-row[disabled] { cursor: not-allowed; }
   .admin-filter-bar { gap: var(--space-1) var(--space-2); }
   .admin-filter-bar-search { flex-basis: 100%; }
   .admin-filters-clear { margin-left: 0; }
+  .admin-filter-range { flex-basis: 100%; justify-content: flex-start; }
+  .admin-filter-range-field { flex: 1 1 auto; }
 }
 
 /* -------------------------------------------------------------------------
@@ -1393,7 +1458,8 @@ button.rail-overview-row[disabled] { cursor: not-allowed; }
   button.rail-overview-row,
   .admin-filters-clear,
   .admin-filter-bar-search,
-  .admin-filter-select {
+  .admin-filter-select,
+  .admin-filter-range-field {
     transition: none;
     animation: none;
   }

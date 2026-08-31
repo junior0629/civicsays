@@ -84,12 +84,20 @@ comment on function public.count_tickets_by_assignee() is
 
 -- -------------------------------------------------------------------------
 -- 4. list_staff_tickets — add the assignee column, the assignee-name
---    column (via LEFT JOIN), and the new p_assignee_filter parameter.
+--    column (via LEFT JOIN), the new p_assignee_filter parameter, and
+--    the new p_from_date / p_to_date parameters for the Date filter.
 --
 --    The p_assignee_filter text accepts:
 --      NULL      = no filter
 --      'unassigned' = t.assigned_official_id IS NULL
 --      anything else = t.assigned_official_id = p_assignee_filter::uuid
+--
+--    The p_from_date / p_to_date parameters are inclusive on each
+--    end. To is implemented as `created_at < (to_date + 1 day)` so
+--    the full day is included regardless of timezone. Both default
+--    to null (no date filter). All date math happens on
+--    t.created_at (matches the Ticket Trend chart, which buckets
+--    on `(created_at at time zone 'UTC')::date`).
 --
 --    The dev/0008 apply script runs this same CREATE OR REPLACE in
 --    one paste, so the production function is updated atomically with
@@ -99,6 +107,8 @@ create or replace function public.list_staff_tickets(
   p_status_filter    text default null,
   p_kind_filter      text default null,
   p_assignee_filter  text default null,
+  p_from_date        text default null,
+  p_to_date          text default null,
   p_limit            int  default 50
 )
 returns table (
@@ -142,12 +152,14 @@ begin
         or (v_assignee_filter = 'unassigned' and t.assigned_official_id is null)
         or (v_assignee_filter <> 'unassigned' and t.assigned_official_id = v_assignee_filter::uuid)
       )
+      and (p_from_date is null or t.created_at >= p_from_date::date)
+      and (p_to_date   is null or t.created_at <  (p_to_date::date + interval '1 day'))
     order by t.created_at desc
     limit v_limit;
 end;
 $$;
 
-grant execute on function public.list_staff_tickets(text, text, text, int) to authenticated;
+grant execute on function public.list_staff_tickets(text, text, text, text, text, int) to authenticated;
 
-comment on function public.list_staff_tickets(text, text, text, int) is
-  'Staff-only list of tickets with optional status, kind, and assignee filters. LIMIT clamped to 1-100. Assignee: null=all, ''unassigned''=NULL bucket, otherwise=uuid.';
+comment on function public.list_staff_tickets(text, text, text, text, text, int) is
+  'Staff-only list of tickets with optional status, kind, assignee, and date filters. LIMIT clamped to 1-100. Assignee: null=all, ''unassigned''=NULL bucket, otherwise=uuid. Date: both null=no filter, p_from_date inclusive, p_to_date inclusive (full day via to_date+1day comparison).';
