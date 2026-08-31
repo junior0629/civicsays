@@ -104,8 +104,10 @@ function friendlyErrorForStaff(err, what) {
   var msg = String(err || '').toLowerCase();
   if (/could not find the function|schema cache|pgrst202/.test(msg)) {
     return 'The dashboard is missing a recent database update. ' +
-      'Please ask your administrator to run supabase/migrations/0009_staff_listing_rpc.sql ' +
-      'and supabase/migrations/0010_staff_activity_rpc.sql in the Supabase SQL editor, then refresh this page.';
+      'Please ask your administrator to run supabase/dev/0008_apply_0013_assignee.sql ' +
+      'in the Supabase SQL editor, then hard-refresh this page. ' +
+      'The new filter dropdowns need the count_tickets_by_assignee() RPC and the updated ' +
+      'list_staff_tickets() (with p_assignee_filter + assigned_official_name) that 0008 installs.';
   }
   if (/timed out/.test(msg)) {
     return 'The request to load ' + what + ' took too long. ' +
