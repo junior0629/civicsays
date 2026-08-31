@@ -474,7 +474,7 @@ async function loadTickets() {
     state.loading.tickets = false;
     renderTicketsTable();
     renderKpiCards(state.tickets);
-    renderRailOverview(state.tickets);
+    renderOverviewDonut(state.tickets);
   }
 }
 
@@ -869,51 +869,208 @@ function buildInquiryCard(i) {
 }
 
 // -------------------------------------------------------------------------
-// Right rail — ticket overview (legend + bars)
+// Right rail — "All tickets" donut chart
+//
+// Replaces the older bar+legend renderer. One SVG donut showing the
+// distribution of tickets by status, plus a compact legend below.
+//
+// Math: each segment is a <circle> stroked with stroke-dasharray so only
+// `segmentLength` of the circumference is painted, starting at the
+// cumulative offset. The whole group is rotated -90° around the center
+// so 0° is 12 o'clock (the natural "start" of a donut).
 // -------------------------------------------------------------------------
-function renderRailOverview(tickets) {
+
+// Donut geometry — chosen so 1 SVG unit ≈ 1px at our 120×120 viewBox.
+var DONUT = {
+  size: 120,
+  cx: 60,
+  cy: 60,
+  radius: 50,
+  stroke: 14,
+};
+
+// 2π × radius — the length of the full circle, used as the dasharray gap.
+function donutCircumference() {
+  return 2 * Math.PI * DONUT.radius;
+}
+
+/**
+ * Pure helper. Given a per-status count object, return one entry per
+ * non-zero status in the documented order. Each entry has the math the
+ * SVG renderer needs (segment length, offset). Tested in isolation.
+ *
+ *   donutSegments({pending: 30, in_process: 19, hold: 1, solved: 0})
+ *     -> [
+ *        { key:'pending',    label:'Pending',    count:30, fraction:0.6,   length:188.5, offset:0     },
+ *        { key:'in_process', label:'In Process', count:19, fraction:0.38,  length:119.4, offset:-188.5},
+ *        { key:'hold',       label:'On Hold',    count:1,  fraction:0.02,  length:6.3,   offset:-307.9},
+ *        // solved omitted because count=0
+ *      ]
+ *
+ * Returns [] if total is 0 — the renderer shows the empty state.
+ */
+export function donutSegments(counts) {
+  var order = [
+    { key: 'pending',    label: 'Pending' },
+    { key: 'in_process', label: 'In Process' },
+    { key: 'hold',       label: 'On Hold' },
+    { key: 'solved',     label: 'Solved' },
+  ];
+  var total = 0;
+  order.forEach(function (o) { total += (counts && counts[o.key]) || 0; });
+  if (total <= 0) return [];
+
+  var C = donutCircumference();
+  var cumulative = 0;
+  var out = [];
+  order.forEach(function (o) {
+    var c = (counts && counts[o.key]) || 0;
+    if (c <= 0) return;
+    var fraction = c / total;
+    var length = fraction * C;
+    out.push({
+      key: o.key,
+      label: o.label,
+      count: c,
+      fraction: fraction,
+      length: length,
+      offset: -cumulative,   // negative = clockwise from 12 o'clock
+    });
+    cumulative += length;
+  });
+  return out;
+}
+
+function renderOverviewDonut(tickets) {
   var root = document.getElementById('rail-overview-body');
   if (!root) return;
   root.innerHTML = '';
+
+  // Count by status
   var counts = { pending: 0, in_process: 0, hold: 0, solved: 0 };
   (tickets || []).forEach(function (t) {
     if (counts[t.status] != null) counts[t.status]++;
   });
-  var total = (tickets || []).length || 1;  // avoid div-by-zero
+  var total = (tickets || []).length;
+  var segments = donutSegments(counts);
 
-  var rows = [
+  // Build the donut wrapper (centered svg + legend below)
+  var wrap = document.createElement('div');
+  wrap.className = 'rail-overview-donut';
+  wrap.setAttribute('data-testid', 'rail-overview-donut');
+  root.appendChild(wrap);
+
+  // ---- Donut SVG ----
+  var C = donutCircumference();
+  var svgNS = 'http://www.w3.org/2000/svg';
+  var svg = document.createElementNS(svgNS, 'svg');
+  svg.setAttribute('class', 'rail-overview-donut-svg');
+  svg.setAttribute('viewBox', '0 0 ' + DONUT.size + ' ' + DONUT.size);
+  svg.setAttribute('role', 'img');
+
+  // Status order — used for the legend and the accessible summary
+  var order = [
     { key: 'pending',    label: 'Pending' },
     { key: 'in_process', label: 'In Process' },
     { key: 'hold',       label: 'On Hold' },
     { key: 'solved',     label: 'Solved' },
   ];
 
-  rows.forEach(function (r) {
+  // Accessible summary. Sentence-form, e.g. "All tickets: 30 pending, 19
+  // in process, 1 on hold, 0 solved." — matches the legend below so
+  // screen-reader users get the same information.
+  var parts = order.map(function (o) { return counts[o.key] + ' ' + o.label.toLowerCase(); });
+  svg.setAttribute('aria-label', 'All tickets: ' + parts.join(', '));
+  wrap.appendChild(svg);
+
+  // Track ring (the dim background that the segments sit on top of)
+  var track = document.createElementNS(svgNS, 'circle');
+  track.setAttribute('class', 'rail-overview-donut-track');
+  track.setAttribute('cx', String(DONUT.cx));
+  track.setAttribute('cy', String(DONUT.cy));
+  track.setAttribute('r', String(DONUT.radius));
+  svg.appendChild(track);
+
+  // Group rotated -90° so 0° is at 12 o'clock
+  var g = document.createElementNS(svgNS, 'g');
+  g.setAttribute('transform', 'rotate(-90 ' + DONUT.cx + ' ' + DONUT.cy + ')');
+  svg.appendChild(g);
+
+  if (segments.length === 0) {
+    // Empty state — a dashed ring with the message in the center
+    track.setAttribute('stroke-dasharray', '4 6');
+    var empty = document.createElementNS(svgNS, 'text');
+    empty.setAttribute('class', 'rail-overview-donut-center-label');
+    empty.setAttribute('x', String(DONUT.cx));
+    empty.setAttribute('y', String(DONUT.cy + 3));
+    empty.textContent = 'No tickets';
+    svg.appendChild(empty);
+  } else {
+    // Segments
+    segments.forEach(function (s) {
+      var seg = document.createElementNS(svgNS, 'circle');
+      seg.setAttribute('class', 'rail-overview-donut-segment');
+      seg.setAttribute('data-status', s.key);
+      seg.setAttribute('data-testid', 'donut-segment-' + s.key);
+      seg.setAttribute('cx', String(DONUT.cx));
+      seg.setAttribute('cy', String(DONUT.cy));
+      seg.setAttribute('r', String(DONUT.radius));
+      // gap = the rest of the circumference, painted as nothing
+      seg.setAttribute('stroke-dasharray', s.length + ' ' + (C - s.length));
+      // negative offset = shift the painted portion clockwise
+      seg.setAttribute('stroke-dashoffset', String(s.offset));
+      // Native SVG tooltip on hover (and screen-reader announcement)
+      var title = document.createElementNS(svgNS, 'title');
+      title.textContent = s.count + ' ' + s.label + ' (' +
+        Math.round(s.fraction * 100) + '%)';
+      seg.appendChild(title);
+      g.appendChild(seg);
+    });
+
+    // Center label: total count + "tickets" / "ticket"
+    var num = document.createElementNS(svgNS, 'text');
+    num.setAttribute('class', 'rail-overview-donut-center');
+    num.setAttribute('x', String(DONUT.cx));
+    num.setAttribute('y', String(DONUT.cy - 2));
+    num.setAttribute('font-size', '20');
+    num.setAttribute('font-weight', '600');
+    num.textContent = String(total);
+    svg.appendChild(num);
+
+    var lbl = document.createElementNS(svgNS, 'text');
+    lbl.setAttribute('class', 'rail-overview-donut-center-label');
+    lbl.setAttribute('x', String(DONUT.cx));
+    lbl.setAttribute('y', String(DONUT.cy + 12));
+    lbl.setAttribute('font-size', '8');
+    lbl.textContent = total === 1 ? 'ticket' : 'tickets';
+    svg.appendChild(lbl);
+  }
+
+  // ---- Legend ----
+  // Same shape as the old bar+legend: dot + label + count, dimmed when 0.
+  var legend = document.createElement('div');
+  legend.className = 'rail-overview-list';
+  legend.setAttribute('role', 'list');
+  order.forEach(function (o) {
     var row = document.createElement('div');
     row.className = 'rail-overview-row';
-    row.setAttribute('data-status', r.key);
-    if (counts[r.key] === 0) row.classList.add('is-empty');
+    row.setAttribute('data-status', o.key);
+    row.setAttribute('role', 'listitem');
+    if (counts[o.key] === 0) row.classList.add('is-empty');
     var dot = document.createElement('span');
     dot.className = 'dot';
     row.appendChild(dot);
-    var lbl = document.createElement('div');
-    lbl.className = 'rail-overview-row-label';
-    lbl.textContent = r.label;
-    row.appendChild(lbl);
+    var lbl2 = document.createElement('div');
+    lbl2.className = 'rail-overview-row-label';
+    lbl2.textContent = o.label;
+    row.appendChild(lbl2);
     var cnt = document.createElement('div');
     cnt.className = 'rail-overview-row-count';
-    cnt.textContent = String(counts[r.key]);
+    cnt.textContent = String(counts[o.key]);
     row.appendChild(cnt);
-    var bar = document.createElement('div');
-    bar.className = 'rail-overview-bar';
-    var fill = document.createElement('div');
-    fill.className = 'rail-overview-bar-fill';
-    var pct = total > 0 ? (counts[r.key] / total) * 100 : 0;
-    fill.style.width = pct + '%';
-    bar.appendChild(fill);
-    row.appendChild(bar);
-    root.appendChild(row);
+    legend.appendChild(row);
   });
+  wrap.appendChild(legend);
 }
 
 // -------------------------------------------------------------------------

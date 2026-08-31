@@ -766,24 +766,57 @@
 .rail-overview-row.is-empty .rail-overview-row-label,
 .rail-overview-row.is-empty .rail-overview-row-count { color: var(--text-disabled); }
 
-.rail-overview-bar {
-  grid-column: 1 / -1;
-  height: 4px;
-  background: var(--glass-secondary);
-  border-radius: 2px;
-  overflow: hidden;
+/* Donut chart — sits above the legend in the "All tickets" card.
+   The legend below keeps the old .rail-overview-* class names so the
+   per-status dot colors (in .rail-overview-row[data-status] .dot) still
+   apply — we only replaced the bar portion of the row. */
+.rail-overview-donut {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
 }
 
-.rail-overview-bar-fill {
-  height: 100%;
-  background: var(--text-muted);
-  border-radius: 2px;
-  transition: width var(--duration-slow) var(--ease-out);
+.rail-overview-donut-svg {
+  width: 120px;
+  height: 120px;
+  overflow: visible;       /* so 14px stroke at the edge isn't clipped */
+  display: block;
 }
 
-.rail-overview-row[data-status="pending"]    .rail-overview-bar-fill { background: var(--status-pending); }
-.rail-overview-row[data-status="in_process"] .rail-overview-bar-fill { background: var(--status-process); }
-.rail-overview-row[data-status="solved"]     .rail-overview-bar-fill { background: var(--status-solved); }
+.rail-overview-donut-track {
+  fill: none;
+  stroke: var(--glass-secondary);
+  stroke-width: 14;
+}
+
+.rail-overview-donut-segment {
+  fill: none;
+  stroke-width: 14;
+  stroke-linecap: butt;   /* butt = clean segment ends, not round */
+  transition: stroke-dasharray var(--duration-slow) var(--ease-out);
+}
+.rail-overview-donut-segment[data-status="pending"]    { stroke: var(--status-pending); }
+.rail-overview-donut-segment[data-status="in_process"] { stroke: var(--status-process); }
+.rail-overview-donut-segment[data-status="hold"]       { stroke: var(--text-disabled); }
+.rail-overview-donut-segment[data-status="solved"]     { stroke: var(--status-solved); }
+
+.rail-overview-donut-center {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-anchor: middle;
+  fill: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.rail-overview-donut-center-label {
+  font-family: var(--font-sans);
+  fill: var(--text-muted);
+  text-anchor: middle;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
 
 /* Activity list */
 .admin-activity-list {
@@ -990,7 +1023,7 @@
 @media (prefers-reduced-motion: reduce) {
   .admin-sidebar,
   .admin-sidebar-scrim,
-  .rail-overview-bar-fill {
+  .rail-overview-donut-segment {
     transition: none;
   }
 }
