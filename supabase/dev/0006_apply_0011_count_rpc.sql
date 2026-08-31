@@ -9,11 +9,17 @@
 -- instead of computing counts from the paginated 50-row slice of
 -- list_staff_tickets.
 --
--- Without this RPC, the dashboard lies once the table has more than
--- ~50 tickets: the donut would show counts from the most recent 50
--- rows, not the actual table state.
+-- IMPORTANT: Supabase Studio wraps multi-statement scripts in a
+-- transaction. If any statement in the script raises an error, the
+-- whole transaction rolls back — including the CREATE FUNCTION that
+-- succeeded earlier. So this script does NOT include a sanity-check
+-- SELECT at the end (it would raise 42501 when run by the service
+-- role, which is what the SQL Editor uses, and roll everything back).
+-- To verify the function exists, run this in the editor after:
+--   select proname from pg_proc where proname = 'count_tickets_by_status';
+--   -- expected: one row, proname = 'count_tickets_by_status'
 --
--- After running, hard-refresh /admin.html. The donut should show the
+-- After applying, hard-refresh /admin.html. The donut should show the
 -- full table's distribution (e.g. 30 pending / 19 in process /
 -- 11 hold / 15 solved if you also ran 0005).
 -- =========================================================================
@@ -43,6 +49,3 @@ grant execute on function public.count_tickets_by_status() to authenticated;
 
 comment on function public.count_tickets_by_status() is
   'Staff-only aggregate count of all tickets grouped by status. No LIMIT — used for KPI cards and the donut chart.';
-
--- Sanity check — should return one row per status that exists.
-select * from public.count_tickets_by_status() order by status;
