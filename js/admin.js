@@ -407,15 +407,29 @@ function swapViewForViewport() {
 // -------------------------------------------------------------------------
 // KPI cards (real counts, no fake trend deltas)
 // -------------------------------------------------------------------------
-function renderKpiCards(tickets) {
+function renderKpiCards(countsOrTickets) {
   var row = document.getElementById('admin-kpi-row');
   if (!row) return;
   row.innerHTML = '';
-  var counts = { pending: 0, in_process: 0, hold: 0, solved: 0 };
-  (tickets || []).forEach(function (t) {
-    if (counts[t.status] != null) counts[t.status]++;
-  });
-  var total = (tickets || []).length;
+  // Accept either a pre-aggregated counts object (from
+  // count_tickets_by_status) or a raw tickets array. The dashboard
+  // passes the counts object; the page header + other internal callers
+  // pass arrays.
+  var counts;
+  if (countsOrTickets && !Array.isArray(countsOrTickets) && typeof countsOrTickets === 'object') {
+    counts = {
+      pending:    Number(countsOrTickets.pending)    || 0,
+      in_process: Number(countsOrTickets.in_process) || 0,
+      hold:       Number(countsOrTickets.hold)       || 0,
+      solved:     Number(countsOrTickets.solved)     || 0,
+    };
+  } else {
+    counts = { pending: 0, in_process: 0, hold: 0, solved: 0 };
+    (countsOrTickets || []).forEach(function (t) {
+      if (counts[t.status] != null) counts[t.status]++;
+    });
+  }
+  var total = counts.pending + counts.in_process + counts.hold + counts.solved;
 
   var cards = [
     { key: 'total',     label: 'Total',      icon: 'inbox',     value: total },
@@ -461,21 +475,46 @@ async function loadTickets() {
 
   try {
     var c = await getClient();
-    var rpc = c.rpc('list_staff_tickets', {
+    // Two parallel RPCs:
+    //   1. list_staff_tickets (paginated, 50 most-recent) — drives the
+    //      table list with the active status + kind filter.
+    //   2. count_tickets_by_status (aggregate, no LIMIT) — drives the
+    //      KPI cards and the "All tickets" donut, so the headline
+    //      counts reflect the WHOLE table, not just the visible slice.
+    // The dashboard was previously computing KPI counts from the
+    // paginated 50-row slice, which made the donut lie once the table
+    // exceeded ~50 rows.
+    var listRpc = c.rpc('list_staff_tickets', {
       p_status_filter: state.statusFilter || null,
       p_kind_filter:   state.kindFilter   || null,
       p_limit: 50,
     });
-    var data = await unwrap(await withTimeout(rpc, RPC_TIMEOUT_MS, 'list_staff_tickets'));
-    state.tickets = Array.isArray(data) ? data : [];
+    var countRpc = c.rpc('count_tickets_by_status');
+
+    var listData   = await unwrap(await withTimeout(listRpc,  RPC_TIMEOUT_MS, 'list_staff_tickets'));
+    var countData  = await unwrap(await withTimeout(countRpc, RPC_TIMEOUT_MS, 'count_tickets_by_status'));
+
+    state.tickets      = Array.isArray(listData) ? listData : [];
+    state.ticketCounts = countsFromRpc(Array.isArray(countData) ? countData : []);
   } catch (err) {
     state.error.tickets = friendlyError(err);
   } finally {
     state.loading.tickets = false;
     renderTicketsTable();
-    renderKpiCards(state.tickets);
-    renderOverviewDonut(state.tickets);
+    renderKpiCards(state.ticketCounts);
+    renderOverviewDonut(state.ticketCounts);
   }
+}
+
+// Normalize the count_tickets_by_status RPC payload into a
+// {pending, in_process, hold, solved} object the KPI renderer and
+// donutSegments already understand. Missing statuses are filled with 0.
+function countsFromRpc(rows) {
+  var out = { pending: 0, in_process: 0, hold: 0, solved: 0 };
+  rows.forEach(function (r) {
+    if (out[r.status] != null) out[r.status] = Number(r.count) || 0;
+  });
+  return out;
 }
 
 function renderTicketsTable() {
@@ -941,17 +980,30 @@ export function donutSegments(counts) {
   return out;
 }
 
-function renderOverviewDonut(tickets) {
+function renderOverviewDonut(countsOrTickets) {
   var root = document.getElementById('rail-overview-body');
   if (!root) return;
   root.innerHTML = '';
 
-  // Count by status
-  var counts = { pending: 0, in_process: 0, hold: 0, solved: 0 };
-  (tickets || []).forEach(function (t) {
-    if (counts[t.status] != null) counts[t.status]++;
-  });
-  var total = (tickets || []).length;
+  // Accept either a pre-aggregated counts object (from
+  // count_tickets_by_status) or a raw tickets array. The donut must
+  // show the WHOLE table, not the paginated 50-row slice the table
+  // list uses.
+  var counts, total;
+  if (countsOrTickets && !Array.isArray(countsOrTickets) && typeof countsOrTickets === 'object') {
+    counts = {
+      pending:    Number(countsOrTickets.pending)    || 0,
+      in_process: Number(countsOrTickets.in_process) || 0,
+      hold:       Number(countsOrTickets.hold)       || 0,
+      solved:     Number(countsOrTickets.solved)     || 0,
+    };
+  } else {
+    counts = { pending: 0, in_process: 0, hold: 0, solved: 0 };
+    (countsOrTickets || []).forEach(function (t) {
+      if (counts[t.status] != null) counts[t.status]++;
+    });
+  }
+  total = counts.pending + counts.in_process + counts.hold + counts.solved;
   var segments = donutSegments(counts);
 
   // Build the donut wrapper (centered svg + legend below)
