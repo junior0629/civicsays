@@ -68,7 +68,7 @@ If you're already signed in, `/login.html` automatically redirects to
 On **`/admin.html`** (the dashboard):
 
 - See all tickets in a list, filter by status (Pending, In Process,
-  On Hold, Solved) and type (Request, Complaint).
+  On Hold, Solved) and type (Request, Report).
 - See all inquiries in a separate tab, filter by status.
 - Click a ticket row → opens `/ticket.html?id=…` for that ticket.
 - Live updates: a new ticket or status change anywhere shows up in the

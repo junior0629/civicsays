@@ -120,7 +120,7 @@ grant execute on function public.list_staff_inquiries(text, int) to authenticate
 
 -- -------------------------------------------------------------------------
 -- 2. Seed 10 demo tickets. Status distribution: 4 pending, 2 in_process,
---    2 hold, 2 solved. Kind distribution: 5 request, 5 complaint.
+--    2 hold, 2 solved. Kind distribution: 5 request, 5 report.
 --    All created_at spread over the last 14 days so the dashboard shows
 --    realistic relative times.
 -- -------------------------------------------------------------------------
@@ -137,7 +137,7 @@ values
    'pending', now() - interval '2 hours', null),
 
   ('CIV-DEMOA2', 'Joey Cruz',        '09181234567', 'joey.c@example.com',
-   'complaint', 'Riverside Park, north entrance',
+   'report', 'Riverside Park, north entrance',
    'Uncollected garbage for 5 days',
    'The dumpster by the north park entrance has not been emptied in five days. The smell is becoming unbearable on warm days.',
    'pending', now() - interval '1 day', null),
@@ -149,7 +149,7 @@ values
    'pending', now() - interval '3 days', null),
 
   ('CIV-DEMOA4', 'Pedro Reyes',      '09201234567', 'pedro.r@example.com',
-   'complaint', '7th Ave, between Oak and Pine',
+   'report', '7th Ave, between Oak and Pine',
    'Pothole causing tire damage',
    'There is a deep pothole on 7th Ave between Oak and Pine. Two residents have reported tire damage this week.',
    'pending', now() - interval '5 days', null),
@@ -162,7 +162,7 @@ values
    'in_process', now() - interval '4 days', null),
 
   ('CIV-DEMOB2', 'Marco Villanueva', '09221234567', 'marco.v@example.com',
-   'complaint', 'Elm St, near Elementary School',
+   'report', 'Elm St, near Elementary School',
    'Speeding vehicles during school hours',
    'Cars regularly exceed the 30 km/h school zone limit on Elm St between 7:30-8:30 AM. Requesting a speed bump or crossing guard.',
    'in_process', now() - interval '6 days', null),
@@ -175,7 +175,7 @@ values
    'hold', now() - interval '7 days', null),
 
   ('CIV-DEMOC2', 'Diego Mendoza',    '09241234567', 'diego.m@example.com',
-   'complaint', 'Riverside Park, west side',
+   'report', 'Riverside Park, west side',
    'Stray dogs near the playground',
    'A pack of stray dogs has been hanging around the west-side playground. Parents are afraid to let small children play there.',
    'hold', now() - interval '9 days', null),
@@ -188,7 +188,7 @@ values
    'solved', now() - interval '11 days', now() - interval '8 days'),
 
   ('CIV-DEMOD2', 'Andres Tolentino', '09261234567', 'andres.t@example.com',
-   'complaint', 'Maple Ave, 3rd block',
+   'report', 'Maple Ave, 3rd block',
    'Noisy karaoke past midnight',
    'A neighbor runs karaoke until 2-3 AM most nights. Multiple complaints from the block. Requesting noise enforcement visit.',
    'solved', now() - interval '13 days', now() - interval '10 days');

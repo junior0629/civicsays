@@ -180,7 +180,7 @@ export function formatBytes(n) {
 
 export const TICKET_KIND_LABELS = Object.freeze({
   request:   'Request',
-  complaint: 'Complaint',
+  report:    'Report',
 });
 
 export function ticketKindLabel(k) {

@@ -111,7 +111,7 @@ async function req(method, p, body) {
     resident_name: 'Phase 4 Verify',
     resident_phone: '5550000042',
     resident_email: 'phase4-verify@example.com',
-    kind: 'complaint',
+    kind: 'report',
     location: '88 Status Way',
     title: 'Phase 4 verification ticket',
     description: 'Created by verify-phase4.js to confirm the ticket detail flow.',

@@ -4,7 +4,7 @@ Build a transparent civic engagement platform that connects residents with their
 
 The system should allow residents to:
 
-Submit requests and complaints.
+Submit requests and reports.
 Receive a unique tracking ID.
 Track the progress of their submissions.
 Communicate with government officials.
@@ -15,7 +15,7 @@ Government officials should be able to:
 Receive and manage resident submissions.
 Review and update tickets.
 Communicate with residents.
-Resolve requests and complaints.
+Resolve requests and reports.
 Monitor the overall ticket and inquiry activity.
 
 The main goal is to make communication between residents and local government trackable, transparent, accountable, and conversational.
@@ -31,7 +31,7 @@ Resident fills in:
 Name
 Phone
 Email
-Request or Complaint
+Request or Report
 Location
 Title
 Description
@@ -89,7 +89,7 @@ Official logs out.
 Features
 Resident Features
 Submit Request
-Submit Complaint
+Submit Report
 Unique Ticket ID
 Ticket Tracking
 Ticket Details

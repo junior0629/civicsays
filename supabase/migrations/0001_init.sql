@@ -29,7 +29,7 @@ create table if not exists public.tickets (
   resident_name     text not null check (length(resident_name) between 1 and 100),
   resident_phone    text not null check (resident_phone ~ '^[0-9]{7,15}$'),
   resident_email    text not null check (resident_email ~* '^[^@\s]+@[^@\s]+\.[^@\s]+$'),
-  kind              text not null check (kind in ('request', 'complaint')),
+  kind              text not null check (kind in ('request', 'report')),
   location          text not null check (length(location) between 1 and 300),
   title             text not null check (length(title) between 3 and 200),
   description       text not null check (length(description) between 1 and 5000),
@@ -126,3 +126,31 @@ comment on table public.inquiry_messages is
 
 create index if not exists inquiry_messages_inquiry_idx
   on public.inquiry_messages(inquiry_id, created_at);
+
+-- -------------------------------------------------------------------------
+-- Idempotent rename block (Phase 5b): the kind enum was historically
+-- 'complaint' but was renamed to 'report' to reduce adoption friction
+-- (residents read "report" as factual, "complaint" as adversarial). The
+-- inline CHECK on line 32 was updated; the block below re-applies the
+-- constraint against an existing dev/prod database that has the old
+-- CHECK in place. Safe to re-run.
+--
+-- ORDER MATTERS: drop the old CHECK, then UPDATE the rows, then add the
+-- new CHECK. Doing the ADD before the UPDATE fails with 23514 because
+-- Postgres validates the new constraint against all existing rows
+-- immediately.
+-- -------------------------------------------------------------------------
+
+alter table public.tickets
+  drop constraint if exists tickets_kind_check;
+
+-- Existing rows: map any old 'complaint' values to 'report' so the new
+-- CHECK does not reject them on insert. Idempotent — no-op if there are
+-- no 'complaint' rows.
+update public.tickets
+  set kind = 'report'
+  where kind = 'complaint';
+
+alter table public.tickets
+  add constraint tickets_kind_check
+  check (kind in ('request', 'report'));

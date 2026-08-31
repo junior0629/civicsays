@@ -13,7 +13,7 @@ import { statusBadgeClass, ticketStatusLabel, ticketKindLabel } from '../js/form
 const SAMPLE = {
   id: 'CIV-DEMOB1',
   status: 'in_process',
-  kind: 'complaint',
+  kind: 'report',
   title: 'Loud karaoke at 2 AM',
   resident_name: 'Renato M.',
   created_at: new Date('2025-08-30T10:00:00Z').toISOString(),
@@ -51,7 +51,7 @@ describe('buildTicketRow', function () {
   it('includes the title and kind label', function () {
     var tr = buildTicketRow(SAMPLE);
     expect(tr.textContent).toContain('Loud karaoke at 2 AM');
-    expect(tr.textContent).toContain(ticketKindLabel('complaint'));
+    expect(tr.textContent).toContain(ticketKindLabel('report'));
   });
 
   it('shows the resident name (or "Anonymous" when missing)', function () {

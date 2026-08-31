@@ -89,7 +89,7 @@
 
 ## Phase 3 — Submit Ticket (Resident)
 
-- [x] `submit.html` — full form: name, phone, email, kind (request/complaint radio), location, title, description, photo upload (dropzone), video link (URL input)
+- [x] `submit.html` — full form: name, phone, email, kind (request/report radio), location, title, description, photo upload (dropzone), video link (URL input)
 - [x] `js/submit.js` — client-side validation (required, email format, phone digits-only 7–15, URL format for video) + photo upload + ticket INSERT + PK collision retry + success modal + draft preservation in sessionStorage
 - [x] `js/format.js` — `generateTrackingId()` returns `CIV-` + 6 chars from `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`; `isValidTrackingId(id)` for reverse validation (consolidated into `format.js`; no separate `ticket-id.js` needed)
 - [x] Photo upload → `ticket-attachments` Storage bucket at `_pending/<timestamp>_<name>`, then moved to `<CIV-ID>/<name>` after ticket insert; store `attachment_path` + `attachment_mime`
@@ -180,7 +180,7 @@ Three-column shell: persistent left sidebar, fluid center (KPI cards + tabbed Ti
   - [x] Fetch + render stats grid: Total, Pending, In Process, On Hold, Solved (real counts, no fake trend)
   - [x] Fetch + render ticket list (table on desktop, cards on mobile; both share the same row data + status badges)
   - [x] Status filter pills (All / Pending / In Process / On Hold / Solved) with counts
-  - [x] Kind filter pills (All / Request / Complaint)
+  - [x] Kind filter pills (All / Request / Report)
   - [x] Free-text search (ID / title / resident) on the visible list (client-side; honest toast on submit)
   - [x] Click ticket row → navigate to `ticket.html?id=…`
   - [x] Inquiries panel: counters (Waiting / Active / Resolved) + table/cards

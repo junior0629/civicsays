@@ -304,7 +304,7 @@ var validators = {
   },
   kind: function (v) {
     if (!v) return 'Please choose a type.';
-    if (v !== 'request' && v !== 'complaint') return 'Please choose a type.';
+    if (v !== 'request' && v !== 'report') return 'Please choose a type.';
     return null;
   },
   location: function (v) {

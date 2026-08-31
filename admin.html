@@ -27,6 +27,15 @@
   <a href="#admin-main" class="visually-hidden">Skip to main content</a>
 
   <!--
+    Three-column shell: sidebar + main + right rail. The .admin-shell
+    grid puts all three side-by-side at desktop widths and stacks /
+    collapses them on smaller viewports (see media queries in
+    style/admin.css). The sidebar is the first child so it's the
+    leftmost column.
+  -->
+  <div class="admin-shell">
+
+  <!--
     Sidebar — persistent left column on desktop, drawer on mobile.
     The aria-label "Primary" matches the public navbar so screen readers
     see one consistent navigation landmark across the staff session.
@@ -88,8 +97,7 @@
     </div>
   </aside>
 
-  <div class="admin-shell">
-    <div class="admin-main" id="admin-main">
+  <div class="admin-main" id="admin-main">
       <header class="admin-header">
         <button class="admin-header-menu" type="button"
                 aria-label="Open navigation" aria-controls="admin-sidebar"
@@ -119,7 +127,7 @@
         <div class="admin-page-header">
           <div>
             <h1 class="admin-page-title" id="dash-title">Tickets</h1>
-            <p class="admin-page-subtitle">Manage and respond to citizen requests and complaints.</p>
+            <p class="admin-page-subtitle">Manage and respond to citizen requests and reports.</p>
           </div>
           <button class="btn btn-primary" type="button" data-testid="new-ticket-btn">
             <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-plus"></use></svg>
@@ -159,7 +167,7 @@
             <span class="filter-label">Type</span>
             <button type="button" class="filter-pill is-active" data-kind="" data-testid="filter-kind-all">All</button>
             <button type="button" class="filter-pill" data-kind="request" data-testid="filter-kind-request">Request</button>
-            <button type="button" class="filter-pill" data-kind="complaint" data-testid="filter-kind-complaint">Complaint</button>
+            <button type="button" class="filter-pill" data-kind="report" data-testid="filter-kind-report">Report</button>
           </div>
           <div class="admin-table-wrap" id="ticket-table-wrap" data-view="table">
             <table class="admin-table" id="ticket-table">

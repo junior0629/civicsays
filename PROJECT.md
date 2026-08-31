@@ -6,7 +6,7 @@ A transparent civic engagement platform that connects residents with their local
 
 ## What residents can do
 
-- Submit a request or complaint and receive a unique tracking ID (`CIV-XXXXXX`)
+- Submit a request or report and receive a unique tracking ID (`CIV-XXXXXX`)
 - Track the progress of their submission in real time
 - Post comments and additions to their existing ticket
 - Ask an official a question via live chat (waiting → active → resolved)
