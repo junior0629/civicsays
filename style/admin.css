@@ -1207,34 +1207,119 @@ button.rail-overview-row[disabled] { cursor: not-allowed; }
 }
 
 /* -------------------------------------------------------------------------
-   Filter pills upgrade (Change 3)
+   Filter row (Change 3 + dropdown pivot)
    -------------------------------------------------------------------------
-   - .admin-filter-bar wraps the four filter rows + the "Clear all"
-     link so the link can sit visually anchored to the right edge.
-   - .filter-pill--chip styles the Date chip the same way the trend
-     range chip is styled (see .admin-trend-range above).
-   - .pill-count is the small numeric badge inside a filter pill
-     (shows the live count). All filter pills get one — even pills
-     with count 0 — so the widths are consistent across rows.
+   - .admin-filter-bar is a single horizontal row: search input
+     (left, flex: 1) + 4 native <select> dropdowns + Clear all link.
+   - .admin-filter-bar-search holds the icon + the row's search
+     <input>. Visually matches the header search (see
+     .admin-header-search above).
+   - .admin-filter-select is a <label> wrapper that pairs a small
+     "Status" / "Type" / etc. caption with a native <select>. The
+     <select> is restyled to match the dashboard's dark surfaces.
+   - .admin-filters-clear is the right-aligned "Clear all" link.
    - .admin-table-cell-assignee is the new table column; the
      .is-unassigned modifier renders the muted "Unassigned" text.
 */
 
 .admin-filter-bar {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: var(--space-2);
+  flex-wrap: wrap;
+  padding: var(--space-2) 0;
+}
+
+.admin-filter-bar-search {
+  flex: 1 1 240px;
+  min-width: 200px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 36px;
+  padding: 0 var(--space-3);
+  background: var(--glass-input);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+.admin-filter-bar-search:focus-within { border-color: var(--accent); }
+.admin-filter-bar-search .icon {
+  width: 14px;
+  height: 14px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.admin-filter-bar-search input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+  font-family: inherit;
+}
+.admin-filter-bar-search input::placeholder { color: var(--text-muted); }
+
+.admin-filter-select {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 36px;
+  padding: 0 0 0 var(--space-2);
+  background: var(--glass-input);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
   position: relative;
+  flex: 0 0 auto;
+}
+.admin-filter-select:focus-within { border-color: var(--accent); }
+.admin-filter-select .filter-label {
+  margin-right: 0;
+}
+.admin-filter-select select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  font-family: inherit;
+  height: 100%;
+  padding: 0 28px 0 var(--space-2);
+  cursor: pointer;
+  /* Show the native dropdown indicator. We use a background image
+     (SVG data URL) so the arrow inherits the muted text color and
+     doesn't need a separate <svg> in the DOM. */
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%2377736E' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='3,5 6,8 9,5'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 12px 12px;
+}
+.admin-filter-select select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* Dropdown options inherit the page background and use the regular
+   system font (native widget rendering). */
+.admin-filter-select select option {
+  background: var(--bg-base, #111);
+  color: var(--text-primary);
 }
 
 .admin-filters-clear {
-  align-self: flex-end;
   font-size: var(--fs-xs);
   font-weight: var(--fw-medium);
   color: var(--text-muted);
   text-decoration: none;
   padding: 4px 8px;
   border-radius: 6px;
+  margin-left: auto;
   transition:
     color var(--duration-fast) var(--ease-out),
     background-color var(--duration-fast) var(--ease-out);
@@ -1246,60 +1331,6 @@ button.rail-overview-row[disabled] { cursor: not-allowed; }
 .admin-filters-clear:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
-}
-
-/* Date chip — visually identical to the trend range chip */
-.filter-pill--chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-default);
-  color: var(--text-secondary);
-  height: 30px;
-  padding: 0 10px;
-}
-.filter-pill--chip:hover {
-  color: var(--text-primary);
-  border-color: var(--text-muted);
-}
-.filter-pill--chip:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-.filter-pill--chip .icon {
-  width: 12px;
-  height: 12px;
-  flex-shrink: 0;
-}
-
-/* Count chip inside a filter pill. We append a .pill-count to every
-   filter pill (even the "All" ones) so column widths stay stable
-   when counts change. Hidden for very small viewports to keep the
-   pills from wrapping awkwardly. */
-.filter-pill .pill-count {
-  display: inline-block;
-  margin-left: 6px;
-  padding: 1px 6px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-default);
-  border-radius: 999px;
-  font: var(--fw-regular) 10px/1.2 var(--font-mono);
-  color: var(--text-muted);
-  vertical-align: middle;
-  min-width: 18px;
-  text-align: center;
-}
-.filter-pill.is-active .pill-count {
-  color: var(--text-primary);
-  background: transparent;
-  border-color: currentColor;
-}
-@media (max-width: 600px) {
-  /* On narrow viewports the pill counts squeeze the labels. Hide
-     them — the table still shows the true row count next to the
-     Tickets tab so the counts are not actually lost. */
-  .filter-pill .pill-count { display: none; }
 }
 
 /* Assignee column in the table */
@@ -1316,6 +1347,16 @@ button.rail-overview-row[disabled] { cursor: not-allowed; }
   font-weight: var(--fw-regular);
 }
 
+/* On narrow viewports the search + 4 selects + clear link can't all
+   fit on one row. Wrap them: the search gets a full row, the
+   selects wrap into a second row, the Clear link drops to its own
+   row. */
+@media (max-width: 720px) {
+  .admin-filter-bar { gap: var(--space-1) var(--space-2); }
+  .admin-filter-bar-search { flex-basis: 100%; }
+  .admin-filters-clear { margin-left: 0; }
+}
+
 /* -------------------------------------------------------------------------
    Reduced motion
    ------------------------------------------------------------------------- */
@@ -1327,8 +1368,8 @@ button.rail-overview-row[disabled] { cursor: not-allowed; }
   .admin-trend-body.is-loading::after,
   button.rail-overview-row,
   .admin-filters-clear,
-  .filter-pill--chip,
-  .filter-pill .pill-count {
+  .admin-filter-bar-search,
+  .admin-filter-select {
     transition: none;
     animation: none;
   }

@@ -184,41 +184,65 @@
         <section id="panel-tickets" role="tabpanel" aria-labelledby="tab-tickets"
                  class="admin-panel" data-testid="panel-tickets">
           <!--
-            Filter bar — Status + Type + Assignee + Date rows in a single
-            .admin-filter-bar wrapper so the "Clear all" link can hang
-            off the right edge. The pill rows themselves use the same
-            .admin-filters class as the other filter groups in the app
-            (see style/admin.css:695-736).
+            Filter bar — single horizontal row: search input (left, flex:1)
+            + four native <select> dropdowns + Clear all link. Native
+            selects are keyboard-accessible by default, screen-reader
+            friendly, and need no custom open/close JS. The Assignee
+            dropdown is populated by js/admin.js after loadOfficials()
+            (one option per active official + All + Unassigned, no
+            special "Assigned to me" — the signed-in staff's own name
+            just appears in the alphabetical list). The Date dropdown
+            is an honest stub with a single option; on change it toasts
+            "More date options coming soon." (same pattern as the trend
+            range chip from Change 1). The header has its own search
+            input that mirrors this one — both share state.searchQuery
+            so they stay in sync.
           -->
           <div class="admin-filter-bar">
-            <div class="admin-filters" data-testid="status-filter" role="group" aria-label="Filter by status">
+            <div class="admin-filter-bar-search" data-testid="filter-bar-search">
+              <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-search"></use></svg>
+              <input type="search" placeholder="Search tickets, residents, or ID…"
+                     aria-label="Search tickets, residents, or ID"
+                     id="admin-filter-search" data-testid="admin-filter-search"
+                     autocomplete="off" />
+            </div>
+
+            <label class="admin-filter-select" data-testid="status-filter">
               <span class="filter-label">Status</span>
-              <button type="button" class="filter-pill is-active" data-status="" data-testid="filter-status-all">All</button>
-              <button type="button" class="filter-pill" data-status="pending" data-testid="filter-status-pending">Pending</button>
-              <button type="button" class="filter-pill" data-status="in_process" data-testid="filter-status-in_process">In Process</button>
-              <button type="button" class="filter-pill" data-status="hold" data-testid="filter-status-hold">On Hold</button>
-              <button type="button" class="filter-pill" data-status="solved" data-testid="filter-status-solved">Solved</button>
-            </div>
-            <div class="admin-filters" data-testid="kind-filter" role="group" aria-label="Filter by kind">
+              <select id="admin-status-select" data-testid="filter-status-select" aria-label="Filter by status">
+                <option value="" data-testid="filter-status-all">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="in_process">In Process</option>
+                <option value="hold">On Hold</option>
+                <option value="solved">Solved</option>
+              </select>
+            </label>
+
+            <label class="admin-filter-select" data-testid="kind-filter">
               <span class="filter-label">Type</span>
-              <button type="button" class="filter-pill is-active" data-kind="" data-testid="filter-kind-all">All</button>
-              <button type="button" class="filter-pill" data-kind="request" data-testid="filter-kind-request">Request</button>
-              <button type="button" class="filter-pill" data-kind="report" data-testid="filter-kind-report">Report</button>
-            </div>
-            <div class="admin-filters" data-testid="assignee-filter" role="group" aria-label="Filter by assignee">
+              <select id="admin-kind-select" data-testid="filter-kind-select" aria-label="Filter by type">
+                <option value="" data-testid="filter-kind-all">All Types</option>
+                <option value="request">Request</option>
+                <option value="report">Report</option>
+              </select>
+            </label>
+
+            <label class="admin-filter-select" data-testid="assignee-filter">
               <span class="filter-label">Assignee</span>
-              <button type="button" class="filter-pill is-active" data-assignee="" data-testid="filter-assignee-all">All</button>
-              <button type="button" class="filter-pill" data-assignee="unassigned" data-testid="filter-assignee-unassigned">Unassigned</button>
-              <!-- additional pills per active official filled by js/admin.js after loadOfficials() -->
-            </div>
-            <div class="admin-filters" data-testid="date-filter" role="group" aria-label="Filter by date">
+              <select id="admin-assignee-select" data-testid="filter-assignee-select" aria-label="Filter by assignee">
+                <option value="" data-testid="filter-assignee-all">All Assignees</option>
+                <option value="unassigned">Unassigned</option>
+                <!-- additional per-official options filled by js/admin.js after loadOfficials() -->
+              </select>
+            </label>
+
+            <label class="admin-filter-select" data-testid="date-filter">
               <span class="filter-label">Date</span>
-              <button type="button" class="filter-pill filter-pill--chip" id="admin-date-chip"
-                      data-testid="filter-date" aria-haspopup="listbox" aria-expanded="false">
-                <span>Any date</span>
-                <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-chevron-down"></use></svg>
-              </button>
-            </div>
+              <select id="admin-date-select" data-testid="filter-date-select" aria-label="Filter by date">
+                <option value="" data-testid="filter-date">Any date</option>
+              </select>
+            </label>
+
             <a href="#" class="admin-filters-clear" id="admin-filters-clear"
                data-testid="filters-clear" hidden>Clear all</a>
           </div>

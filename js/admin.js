@@ -54,6 +54,10 @@ var state = {
   kindFilter: '',
   inqStatusFilter: '',
   assigneeFilter: '',
+  // Live search query — shared by the header search input and the
+  // filter-row search input so they stay in sync. Cleared by
+  // wireClearAllFilters.
+  searchQuery: '',
   tickets: [],
   inquiries: [],
   loading: { tickets: true, inquiries: true },
@@ -140,10 +144,8 @@ async function main() {
 
   // 4. Wire tab + filter controls + search + hamburger.
   wireTabs();
-  wireStatusFilters();
-  wireKindFilters();
-  wireAssigneeFilters();
-  wireDateChip();
+  wireFilterRow();
+  wireFilterRowSearch();
   wireClearAllFilters();
   wireInquiryStatusFilters();
   wireSearch();
@@ -158,8 +160,8 @@ async function main() {
   window.addEventListener('resize', swapViewForViewport);
 
   // 5. Load initial data + start realtime.
-  // loadOfficials() drives the Assignee filter pills; safe to fail
-  // (the renderer just shows All + Unassigned). Same for
+  // loadOfficials() drives the Assignee dropdown options; safe to
+  // fail (the dropdown just shows All + Unassigned). Same for
   // loadAssigneeCounts() — counts degrade to 0.
   await Promise.all([
     loadOfficials(),
@@ -169,12 +171,8 @@ async function main() {
   await loadActivity();
   await loadTrend();
   wireRealtime();
-  // First-pass UI sync: render pill counts + assignee pill list now
-  // that we have data, and re-render the type counts after the table
-  // finishes its initial paint.
-  renderStatusPillCounts();
-  renderTypePillCounts();
-  renderAssigneePills();
+  // First-pass UI sync now that we have data.
+  renderAssigneeSelect();
   updateClearAllVisibility();
 
   // When the user tabs back to the dashboard, refresh the trend so
@@ -309,9 +307,16 @@ function wireTabs() {
 // whichever the user clicks, both controls reflect the new state.
 function applyStatusFilter(status) {
   state.statusFilter = status || '';
-  // Pills
+  // Filter row <select> — keep it in sync with the donut legend click.
+  var statusSel = document.getElementById('admin-status-select');
+  if (statusSel && statusSel.value !== state.statusFilter) {
+    statusSel.value = state.statusFilter;
+  }
+  // Pills (legacy — the pill row was replaced by the <select> in
+  // the dropdown pivot. Kept as a no-op fallback for any older
+  // markup still in the DOM.)
   var pillRow = document.querySelector('[data-testid="status-filter"]');
-  if (pillRow) {
+  if (pillRow && pillRow.querySelectorAll) {
     pillRow.querySelectorAll('.filter-pill').forEach(function (b) {
       var match = (b.dataset.status || '') === state.statusFilter;
       b.classList.toggle('is-active', match);
@@ -369,60 +374,95 @@ function wireKindFilters() {
 }
 
 // -------------------------------------------------------------------------
-// Filter pills upgrade (Change 3) — Assignee + Date + Clear all
+// Filter row (Change 3 + dropdown pivot) — single horizontal row of
+// native <select> dropdowns. Native selects are keyboard-accessible by
+// default (arrow keys, type-ahead, esc), screen-reader friendly, and
+// need no custom open/close JS. The user explicitly chose this over
+// custom <button>+<ul> dropdowns because the option counts are
+// small (≤10) and the native affordance matches NN/g "match
+// between system and the real world" for a staff tool.
 // -------------------------------------------------------------------------
 
-// Wire the Assignee pill row. Like wireKindFilters but each pill has
-// data-assignee (which is either '' for All, 'unassigned', or a uuid).
-// Pills are re-rendered on every renderAssigneePills() call so the
-// per-official pills can be added/removed as the officials list
-// changes — the click handler lives on the row, not on each pill, so
-// the listener survives every re-render.
-function wireAssigneeFilters() {
-  var row = document.querySelector('[data-testid="assignee-filter"]');
-  if (!row) return;
-  row.addEventListener('click', function (e) {
-    var btn = e.target.closest('.filter-pill');
-    if (!btn) return;
-    var val = btn.dataset.assignee || '';
-    applyAssigneeFilter(val);
-  });
-}
-
-function applyAssigneeFilter(value) {
-  state.assigneeFilter = value || '';
-  var row = document.querySelector('[data-testid="assignee-filter"]');
-  if (row) {
-    row.querySelectorAll('.filter-pill').forEach(function (b) {
-      var match = (b.dataset.assignee || '') === state.assigneeFilter;
-      b.classList.toggle('is-active', match);
+// Wire the four filter <select>s in the filter row. Each one writes
+// to its corresponding state.* field and calls loadTickets(). The
+// status <select> change handler also re-syncs the donut legend's
+// aria-pressed (same behavior as applyStatusFilter() did for the
+// pill row).
+function wireFilterRow() {
+  // Status
+  var statusSel = document.getElementById('admin-status-select');
+  if (statusSel) {
+    statusSel.addEventListener('change', function () {
+      var v = statusSel.value || '';
+      state.statusFilter = v;
+      // Re-sync the donut legend's aria-pressed (the donut still uses
+      // the same .rail-overview-row buttons — the filter contract
+      // didn't change, only the picker control).
+      var legendRows = document.querySelectorAll('[data-testid^="donut-legend-"]');
+      legendRows.forEach(function (b) {
+        b.setAttribute('aria-pressed',
+          (b.dataset.status || '') === v ? 'true' : 'false');
+      });
+      loadTickets();
     });
   }
-  loadTickets();
+  // Type
+  var kindSel = document.getElementById('admin-kind-select');
+  if (kindSel) {
+    kindSel.addEventListener('change', function () {
+      state.kindFilter = kindSel.value || '';
+      loadTickets();
+    });
+  }
+  // Assignee
+  var assigneeSel = document.getElementById('admin-assignee-select');
+  if (assigneeSel) {
+    assigneeSel.addEventListener('change', function () {
+      state.assigneeFilter = assigneeSel.value || '';
+      loadTickets();
+    });
+  }
+  // Date — honest stub. The only option is "Any date" (value=""),
+  // but if the user changes the selection we toast the same
+  // "coming soon" message as the trend range chip from Change 1.
+  var dateSel = document.getElementById('admin-date-select');
+  if (dateSel) {
+    dateSel.addEventListener('change', function () {
+      // Always reset to "Any date" since there are no real options
+      // yet — keeps the dropdown honest about its state.
+      dateSel.value = '';
+      toast('More date options coming soon.', 'info', 2500);
+    });
+  }
 }
 
-// Date chip — honest stub. Toasts "More date options coming soon."
-// and pulses aria-expanded for ~150ms. Same pattern as wireTrendRange
-// from Change 1. There is no real date filter yet; the chip always
-// reads "Any date".
-function wireDateChip() {
-  var chip = document.getElementById('admin-date-chip');
-  if (!chip) return;
-  function pulse() {
-    chip.setAttribute('aria-expanded', 'true');
-    setTimeout(function () { chip.setAttribute('aria-expanded', 'false'); }, 150);
-  }
-  chip.addEventListener('click', function () {
-    pulse();
-    toast('More date options coming soon.', 'info', 2500);
+// Populate the Assignee <select> with one option per active official.
+// Called after loadOfficials(). The two base options ("All Assignees"
+// + "Unassigned") are hand-written in admin.html and preserved; we
+// only APPEND per-official options. Existing per-official options are
+// removed first so re-renders are idempotent. The signed-in staff's
+// own name appears in the alphabetical list like everyone else's —
+// no special "Assigned to me" option (per user request).
+function renderAssigneeSelect() {
+  var sel = document.getElementById('admin-assignee-select');
+  if (!sel) return;
+  // Remove any per-official options (value starts with the uuid shape).
+  // Keep the All + Unassigned base options.
+  var baseValues = { '': 1, 'unassigned': 1 };
+  Array.from(sel.options).forEach(function (o) {
+    if (!baseValues[o.value]) sel.removeChild(o);
   });
-  chip.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      pulse();
-      toast('More date options coming soon.', 'info', 2500);
-    }
+  if (!Array.isArray(state.officials) || state.officials.length === 0) return;
+  state.officials.forEach(function (o) {
+    var opt = document.createElement('option');
+    opt.value = o.id;
+    opt.setAttribute('data-testid', 'filter-assignee-' + o.id);
+    opt.textContent = truncate(o.full_name, 32);
+    sel.appendChild(opt);
   });
+  // Re-select the previously-active assignee in case the list
+  // changed and the new options no longer include it.
+  sel.value = state.assigneeFilter || '';
 }
 
 // Clear-all link — resets every filter to "All" and re-renders.
@@ -432,158 +472,52 @@ function wireClearAllFilters() {
   if (!link) return;
   link.addEventListener('click', function (e) {
     e.preventDefault();
-    var anyChange =
+    var anyActive =
       state.statusFilter   ||
       state.kindFilter     ||
-      state.assigneeFilter;
-    if (!anyChange) return;
-    // Reset each filter; the applyX helpers re-sync the active pill
-    // + reload. We pass false for "don't re-load between each one" by
-    // setting state.* first, then firing a single loadTickets() at the
-    // end. applyStatusFilter always reloads, so we let it be the last
-    // one to fire and call applyAssigneeFilter('') first which also
-    // reloads. Order doesn't matter much because the second reload
-    // wins; the table ends up with no filter.
+      state.assigneeFilter ||
+      state.searchQuery;
+    if (!anyActive) return;
+    // Reset state. The dropdowns are reset by setting .value = ''
+    // directly (the change event is suppressed so we don't refetch
+    // four times). The search inputs are cleared via the sync
+    // helpers. A single loadTickets() closes the round-trip.
+    state.statusFilter   = '';
     state.kindFilter     = '';
     state.assigneeFilter = '';
-    // Re-sync the type pills' active state directly (no helper yet —
-    // kind filter changes call loadTickets but also toggle classes).
-    var kindRow = document.querySelector('[data-testid="kind-filter"]');
-    if (kindRow) {
-      kindRow.querySelectorAll('.filter-pill').forEach(function (b) {
-        b.classList.toggle('is-active', (b.dataset.kind || '') === '');
-      });
-    }
-    // Apply assignee (this calls loadTickets)
-    applyAssigneeFilter('');
-    // Then status — applyStatusFilter also calls loadTickets, but the
-    // final call wins.
-    applyStatusFilter('');
-    // Date chip: nothing real to reset (it's a stub), but the active
-    // class is never set on it, so no work needed.
+    state.searchQuery    = '';
+    var statusSel   = document.getElementById('admin-status-select');
+    var kindSel     = document.getElementById('admin-kind-select');
+    var assigneeSel = document.getElementById('admin-assignee-select');
+    var dateSel     = document.getElementById('admin-date-select');
+    if (statusSel)   statusSel.value   = '';
+    if (kindSel)     kindSel.value     = '';
+    if (assigneeSel) assigneeSel.value = '';
+    if (dateSel)     dateSel.value     = '';
+    syncRowSearchFromState();
+    syncHeaderSearchFromState();
+    // Donut legend sync.
+    var legendRows = document.querySelectorAll('[data-testid^="donut-legend-"]');
+    legendRows.forEach(function (b) { b.setAttribute('aria-pressed', 'false'); });
+    loadTickets();
     updateClearAllVisibility();
   });
 }
 
-// Show or hide the Clear-all link based on whether any filter is
-// active. Called after every loadTickets() and after the link's own
-// click handler.
+// Show or hide the Clear-all link based on whether any filter or
+// search query is active. Called after every loadTickets() and after
+// the link's own click handler.
 function updateClearAllVisibility() {
   var link = document.getElementById('admin-filters-clear');
   if (!link) return;
-  var anyActive = !!(state.statusFilter || state.kindFilter || state.assigneeFilter);
+  var anyActive = !!(
+    state.statusFilter   ||
+    state.kindFilter     ||
+    state.assigneeFilter ||
+    state.searchQuery
+  );
   if (anyActive) link.removeAttribute('hidden');
   else link.setAttribute('hidden', '');
-}
-
-// Render one pill per active official into the Assignee pill row.
-// Called after loadOfficials() and on every assignee-count update.
-// Existing "All" + "Unassigned" pills in the HTML are preserved — we
-// only APPEND per-official pills. The per-official pills are removed
-// first so re-renders are idempotent.
-function renderAssigneePills() {
-  var row = document.querySelector('[data-testid="assignee-filter"]');
-  if (!row) return;
-  // Remove existing per-official pills (anything with a uuid-looking
-  // data-assignee). Keep the two base pills (data-assignee='' and
-  // data-assignee='unassigned') since they are hand-written in HTML.
-  var all = row.querySelectorAll('.filter-pill');
-  all.forEach(function (b) {
-    var a = b.dataset.assignee || '';
-    if (a && a !== 'unassigned') b.remove();
-  });
-  if (!Array.isArray(state.officials) || state.officials.length === 0) return;
-  // Append in display order (officials are already sorted by
-  // full_name in loadOfficials()).
-  state.officials.forEach(function (o) {
-    var pill = document.createElement('button');
-    pill.type = 'button';
-    pill.className = 'filter-pill';
-    pill.setAttribute('data-assignee', o.id);
-    pill.setAttribute('data-testid', 'filter-assignee-' + o.id);
-    var label = document.createElement('span');
-    label.className = 'pill-label';
-    label.textContent = truncate(o.full_name, 22);
-    pill.appendChild(label);
-    pill.appendChild(buildPillCountNode(countForAssignee(o.id)));
-    row.appendChild(pill);
-  });
-  // Re-sync the active state in case renderAssigneePills() was
-  // called after the user had already picked an assignee.
-  applyAssigneeFilter(state.assigneeFilter);
-}
-
-function countForAssignee(id) {
-  if (!state.assigneeCounts) return 0;
-  var v = state.assigneeCounts[id];
-  return typeof v === 'number' ? v : 0;
-}
-
-function countForAssigneeUnassigned() {
-  if (!state.assigneeCounts) return 0;
-  var v = state.assigneeCounts['unassigned'];
-  return typeof v === 'number' ? v : 0;
-}
-
-// Build a <span class="pill-count">N</span> for a filter pill.
-function buildPillCountNode(n) {
-  var span = document.createElement('span');
-  span.className = 'pill-count';
-  span.setAttribute('data-testid', 'pill-count');
-  span.textContent = String(n);
-  return span;
-}
-
-// Update the count chip inside every Status pill + the Unassigned
-// pill's count. "All" Status pill = sum of the four statuses.
-// Re-runs every time state.ticketCounts changes (loadTickets).
-function renderStatusPillCounts() {
-  var row = document.querySelector('[data-testid="status-filter"]');
-  if (!row) return;
-  var counts = state.ticketCounts || { pending: 0, in_process: 0, hold: 0, solved: 0 };
-  var total = counts.pending + counts.in_process + counts.hold + counts.solved;
-  row.querySelectorAll('.filter-pill').forEach(function (b) {
-    var key = b.dataset.status || '';
-    var n = (key === '') ? total : (counts[key] || 0);
-    setPillCount(b, n);
-  });
-  // Unassigned pill count lives in the Assignee row.
-  var unRow = document.querySelector('[data-testid="assignee-filter"]');
-  if (unRow) {
-    var un = unRow.querySelector('.filter-pill[data-assignee="unassigned"]');
-    if (un) setPillCount(un, countForAssigneeUnassigned());
-  }
-}
-
-// In-memory Type pill counts — derived from the current state.tickets
-// slice. Recomputed on every renderTicketsTable() so they stay in
-// sync with the user's current Status/Kind/Assignee filter combo.
-// (The user explicitly chose this over a new count_tickets_by_kind
-// RPC — the table is at most 50 rows so derivation is cheap.)
-function renderTypePillCounts() {
-  var row = document.querySelector('[data-testid="kind-filter"]');
-  if (!row) return;
-  var tickets = Array.isArray(state.tickets) ? state.tickets : [];
-  var c = { request: 0, report: 0 };
-  tickets.forEach(function (t) { if (c[t.kind] != null) c[t.kind]++; });
-  var total = c.request + c.report;
-  row.querySelectorAll('.filter-pill').forEach(function (b) {
-    var key = b.dataset.kind || '';
-    var n = (key === '') ? total : (c[key] || 0);
-    setPillCount(b, n);
-  });
-}
-
-// Set or insert the count chip on a filter pill. Idempotent — finds
-// any existing .pill-count and updates it, or appends a new one.
-function setPillCount(pill, n) {
-  if (!pill) return;
-  var existing = pill.querySelector('.pill-count');
-  if (existing) {
-    existing.textContent = String(n);
-    return;
-  }
-  pill.appendChild(buildPillCountNode(n));
 }
 
 function wireInquiryStatusFilters() {
@@ -604,8 +538,12 @@ function wireSearch() {
   if (!input) return;
   // Local client-side filter on the current table. Real full-text
   // search is a follow-up — we say so honestly in the placeholder area
-  // toast when the user submits.
+  // toast when the user submits. The header input and the filter-row
+  // input share state.searchQuery so typing in one updates the other
+  // (see wireFilterRowSearch).
   input.addEventListener('input', function () {
+    state.searchQuery = input.value;
+    syncRowSearchFromState();
     renderTicketsTable();
   });
   input.addEventListener('keydown', function (e) {
@@ -614,13 +552,53 @@ function wireSearch() {
       var q = input.value.trim();
       if (!q) return;
       toast('Search filters the tickets below by title, ID, or resident. ' +
-            'Use the status pills to narrow further.', 'info', 4000);
+            'Use the status dropdowns to narrow further.', 'info', 4000);
     }
     if (e.key === 'Escape') {
       input.value = '';
+      state.searchQuery = '';
+      syncRowSearchFromState();
       renderTicketsTable();
     }
   });
+}
+
+// Push state.searchQuery into the filter-row search input without
+// re-triggering its own input listener (which would re-set state).
+// Called from wireSearch() so the two inputs stay in sync.
+function syncRowSearchFromState() {
+  var row = document.getElementById('admin-filter-search');
+  if (!row) return;
+  if (row.value !== state.searchQuery) row.value = state.searchQuery;
+}
+
+// Wire the filter-row search input (the one inside the new horizontal
+// filter bar). Mirrors wireSearch() — same state.searchQuery, same
+// live client-side filtering. We call syncRowSearchFromState() /
+// syncHeaderSearchFromState() after each input event so the two
+// inputs stay visually in sync.
+function wireFilterRowSearch() {
+  var input = document.getElementById('admin-filter-search');
+  if (!input) return;
+  input.addEventListener('input', function () {
+    state.searchQuery = input.value;
+    syncHeaderSearchFromState();
+    renderTicketsTable();
+  });
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      input.value = '';
+      state.searchQuery = '';
+      syncHeaderSearchFromState();
+      renderTicketsTable();
+    }
+  });
+}
+
+function syncHeaderSearchFromState() {
+  var hdr = document.getElementById('admin-search');
+  if (!hdr) return;
+  if (hdr.value !== state.searchQuery) hdr.value = state.searchQuery;
 }
 
 function wireKeyboardShortcuts() {
@@ -628,7 +606,11 @@ function wireKeyboardShortcuts() {
     var k = e.key.toLowerCase();
     if ((e.ctrlKey || e.metaKey) && k === 'k') {
       e.preventDefault();
-      var input = document.getElementById('admin-search');
+      // Prefer the filter-row search (it's the primary input now and
+      // sits next to the dropdowns). Fall back to the header input
+      // if the row one isn't in the DOM (older markup).
+      var input = document.getElementById('admin-filter-search')
+               || document.getElementById('admin-search');
       if (input) input.focus();
     }
   });
@@ -813,9 +795,6 @@ async function loadTickets() {
     renderTicketsTable();
     renderKpiCards(state.ticketCounts);
     renderOverviewDonut(state.ticketCounts);
-    renderStatusPillCounts();
-    renderTypePillCounts();
-    renderAssigneePills();
     updateClearAllVisibility();
   }
 }
@@ -891,9 +870,9 @@ function renderTicketsTable() {
     return;
   }
 
-  // Apply local search (top header input) on top of the server-filtered list.
-  var q = (document.getElementById('admin-search') || {}).value || '';
-  q = q.trim().toLowerCase();
+  // Apply local search (state.searchQuery, shared by the header input
+  // and the filter-row input) on top of the server-filtered list.
+  var q = (state.searchQuery || '').trim().toLowerCase();
   var visible = state.tickets.filter(function (t) {
     if (!q) return true;
     return (t.id || '').toLowerCase().indexOf(q) !== -1
@@ -911,11 +890,6 @@ function renderTicketsTable() {
     var card = buildTicketCard(t);
     if (cards) cards.appendChild(card);
   });
-
-  // Type pill counts depend on what's currently in state.tickets, so
-  // recompute them on every render (the user explicitly chose
-  // in-memory derivation over a new count_tickets_by_kind RPC).
-  renderTypePillCounts();
 }
 
 // Skeleton placeholder rows
