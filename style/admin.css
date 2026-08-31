@@ -1371,6 +1371,11 @@ button.rail-overview-row[disabled] { cursor: not-allowed; }
   gap: var(--space-2);
   flex: 0 0 auto;
 }
+/* The HTML `hidden` attribute is supposed to imply `display: none`,
+   but our explicit `display: inline-flex` rule above wins over the
+   user-agent stylesheet. Re-assert the hide here so the range truly
+   disappears until the user picks "Custom…" from the Date select. */
+.admin-filter-range[hidden] { display: none; }
 .admin-filter-range-field {
   display: inline-flex;
   align-items: center;
