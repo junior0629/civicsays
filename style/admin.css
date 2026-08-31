@@ -878,6 +878,42 @@
 .rail-overview-row.is-empty .rail-overview-row-label,
 .rail-overview-row.is-empty .rail-overview-row-count { color: var(--text-disabled); }
 
+/* Legend rows are <button>s — reset the UA defaults so the row keeps
+   the same look as the old <div> but is now clickable. */
+button.rail-overview-row {
+  background: none;
+  border: 0;
+  border-left: 2px solid transparent;   /* room for the pressed-state border */
+  padding: 6px 8px 6px 10px;
+  margin-left: -10px;                  /* keep the left edge aligned with the title */
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  width: calc(100% + 10px);
+  border-radius: 6px;
+  transition: background var(--duration-fast) var(--ease-out),
+              border-color var(--duration-fast) var(--ease-out),
+              color var(--duration-fast) var(--ease-out);
+}
+button.rail-overview-row:hover:not([disabled]) {
+  background: var(--glass-hover);
+}
+button.rail-overview-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+button.rail-overview-row[aria-pressed="true"] {
+  background: var(--accent-soft);
+  border-left-color: var(--accent);
+  color: var(--text-primary);
+}
+button.rail-overview-row[aria-pressed="true"][data-status="pending"]    { border-left-color: var(--status-pending); }
+button.rail-overview-row[aria-pressed="true"][data-status="in_process"] { border-left-color: var(--status-process); }
+button.rail-overview-row[aria-pressed="true"][data-status="hold"]       { border-left-color: var(--text-muted); }
+button.rail-overview-row[aria-pressed="true"][data-status="solved"]     { border-left-color: var(--status-solved); }
+button.rail-overview-row[disabled] { cursor: not-allowed; }
+
 /* Donut chart — sits above the legend in the "All tickets" card.
    The legend below keeps the old .rail-overview-* class names so the
    per-status dot colors (in .rail-overview-row[data-status] .dot) still
@@ -1137,7 +1173,8 @@
   .admin-sidebar-scrim,
   .rail-overview-donut-segment,
   .admin-trend-range,
-  .admin-trend-body.is-loading::after {
+  .admin-trend-body.is-loading::after,
+  button.rail-overview-row {
     transition: none;
     animation: none;
   }

@@ -141,6 +141,7 @@ async function main() {
   wireBell();
   wireSidebarNav();
   wireTrendRange();
+  wireDonutLegend();
   swapViewForViewport();
   window.addEventListener('resize', swapViewForViewport);
 
@@ -276,16 +277,55 @@ function wireTabs() {
 // -------------------------------------------------------------------------
 // Filter pills + local search
 // -------------------------------------------------------------------------
+// Shared: set state.statusFilter, sync the visible "is-active" pill +
+// the legend's aria-pressed, and reload the table. Both the pill row
+// and the donut legend call this so the two stay in lockstep —
+// whichever the user clicks, both controls reflect the new state.
+function applyStatusFilter(status) {
+  state.statusFilter = status || '';
+  // Pills
+  var pillRow = document.querySelector('[data-testid="status-filter"]');
+  if (pillRow) {
+    pillRow.querySelectorAll('.filter-pill').forEach(function (b) {
+      var match = (b.dataset.status || '') === state.statusFilter;
+      b.classList.toggle('is-active', match);
+    });
+  }
+  // Legend (rebuilt on every donut render, so a direct querySelector
+  // here is enough — the buttons are the ones we just made).
+  var legendRows = document.querySelectorAll('[data-testid^="donut-legend-"]');
+  legendRows.forEach(function (b) {
+    b.setAttribute('aria-pressed',
+      (b.dataset.status || '') === state.statusFilter ? 'true' : 'false');
+  });
+  loadTickets();
+}
+
 function wireStatusFilters() {
   var row = document.querySelector('[data-testid="status-filter"]');
   if (!row) return;
   row.addEventListener('click', function (e) {
     var btn = e.target.closest('.filter-pill');
     if (!btn) return;
-    row.querySelectorAll('.filter-pill').forEach(function (b) { b.classList.remove('is-active'); });
-    btn.classList.add('is-active');
-    state.statusFilter = btn.dataset.status || '';
-    loadTickets();
+    applyStatusFilter(btn.dataset.status || '');
+  });
+}
+
+// Donut legend (right rail) — each legend row is now a <button> with
+// data-status. Clicking it dispatches the same effect as the
+// equivalent filter pill. Empty rows (count = 0) are disabled, so
+// clicks on them don't fire — same behavior as the old static <div>.
+function wireDonutLegend() {
+  var list = document.querySelector('.rail-overview-list');
+  if (!list) return;
+  list.addEventListener('click', function (e) {
+    var btn = e.target.closest('.rail-overview-row');
+    if (!btn || btn.disabled) return;
+    var status = btn.dataset.status || '';
+    // Toggle: clicking the currently-active legend row clears the
+    // filter (returns to "All"), same as clicking the "All" pill.
+    if (state.statusFilter === status) status = '';
+    applyStatusFilter(status);
   });
 }
 
@@ -1042,10 +1082,12 @@ function renderOverviewDonut(countsOrTickets) {
   ];
 
   // Accessible summary. Sentence-form, e.g. "All tickets: 30 pending, 19
-  // in process, 1 on hold, 0 solved." — matches the legend below so
-  // screen-reader users get the same information.
+  // in process, 1 on hold, 0 solved. Click a status in the legend below
+  // to filter the tickets table." — same info screen readers get
+  // elsewhere + the new interactivity hint.
   var parts = order.map(function (o) { return counts[o.key] + ' ' + o.label.toLowerCase(); });
-  svg.setAttribute('aria-label', 'All tickets: ' + parts.join(', '));
+  svg.setAttribute('aria-label', 'All tickets: ' + parts.join(', ')
+    + '. Click a status in the legend below to filter the table.');
   wrap.appendChild(svg);
 
   // Track ring (the dim background that the segments sit on top of)
@@ -1111,25 +1153,37 @@ function renderOverviewDonut(countsOrTickets) {
     svg.appendChild(lbl);
   }
 
-  // ---- Legend ----
-  // Same shape as the old bar+legend: dot + label + count, dimmed when 0.
+  // ---- Legend (interactive filter) ----
+  // Each row is a <button> so the legend is clickable AND keyboard-
+  // focusable. Clicking a status dispatches the same effect as the
+  // status filter pill at the top of the tickets table. The button is
+  // disabled when the count is 0 so empty rows don't fire.
   var legend = document.createElement('div');
   legend.className = 'rail-overview-list';
   legend.setAttribute('role', 'list');
   order.forEach(function (o) {
-    var row = document.createElement('div');
+    var empty = counts[o.key] === 0;
+    var row = document.createElement('button');
+    row.type = 'button';
     row.className = 'rail-overview-row';
     row.setAttribute('data-status', o.key);
+    row.setAttribute('data-testid', 'donut-legend-' + o.key);
     row.setAttribute('role', 'listitem');
-    if (counts[o.key] === 0) row.classList.add('is-empty');
+    row.setAttribute('aria-pressed', state.statusFilter === o.key ? 'true' : 'false');
+    row.setAttribute('aria-label', 'Filter to ' + o.label + ' tickets — '
+      + counts[o.key]);
+    if (empty) {
+      row.classList.add('is-empty');
+      row.disabled = true;
+    }
     var dot = document.createElement('span');
     dot.className = 'dot';
     row.appendChild(dot);
-    var lbl2 = document.createElement('div');
+    var lbl2 = document.createElement('span');
     lbl2.className = 'rail-overview-row-label';
     lbl2.textContent = o.label;
     row.appendChild(lbl2);
-    var cnt = document.createElement('div');
+    var cnt = document.createElement('span');
     cnt.className = 'rail-overview-row-count';
     cnt.textContent = String(counts[o.key]);
     row.appendChild(cnt);
