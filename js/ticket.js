@@ -1569,9 +1569,14 @@ function mountStaffSidebar(official) {
     }
   }
 
-  // Build shell
+  // Build shell — three columns: sidebar | main | right rail. The sidebar
+  // is the first child so the grid places it on the left.
   var shell = document.createElement('div');
   shell.className = 'admin-shell';
+
+  var sidebar = buildStaffSidebar(official);
+  shell.appendChild(sidebar);
+
   var mainCol = document.createElement('div');
   mainCol.className = 'admin-main';
   mainCol.id = 'admin-main';
@@ -1605,18 +1610,14 @@ function mountStaffSidebar(official) {
   mainCol.appendChild(page);
   shell.appendChild(mainCol);
 
-  // 3. Build the sidebar and prepend it to the body (so it sits next
-  //    to the shell, just like on admin.html).
-  var sidebar = buildStaffSidebar(official);
-  document.body.insertBefore(sidebar, document.body.firstChild);
-
-  // 4. Move the shell in front of the now-hidden navbar (so #ticket-region
-  //    ends up nested correctly).
+  // 3. Mount the whole shell into the existing page-main (so it ends
+  //    up nested correctly under body, in front of the now-hidden
+  //    public navbar).
   pageMain.appendChild(shell);
 
-  // 5. Hamburger wiring (same as admin.js)
+  // 4. Hamburger wiring (same as admin.js)
   wireStaffHamburger();
-  // 6. Ctrl+K focus
+  // 5. Ctrl+K focus
   wireStaffSearchShortcut();
 }
 
