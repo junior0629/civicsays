@@ -489,6 +489,118 @@
 }
 
 /* -------------------------------------------------------------------------
+   Ticket Trend card
+   -------------------------------------------------------------------------
+   7-day line + area chart of ticket volume, between the KPI row and
+   the Tabs row. Sits in a glass-card.compact surface like the rest of
+   the dashboard. Line and area use --accent (warm orange). The range
+   chip is an honest single-value stub — see wireTrendRange() in
+   js/admin.js for the "More range options coming soon." toast.
+*/
+.admin-trend-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.admin-trend-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.admin-trend-title {
+  margin: 0;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+  letter-spacing: var(--tracking-tight);
+}
+
+.admin-trend-range {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 4px 10px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+  font: var(--fw-medium) var(--fs-xs)/1.2 var(--font-sans);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-out),
+              border-color var(--duration-fast) var(--ease-out);
+}
+.admin-trend-range:hover {
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+}
+.admin-trend-range:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.admin-trend-range .icon { width: 12px; height: 12px; }
+
+.admin-trend-body {
+  position: relative;
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.admin-trend-body.is-loading::after {
+  content: '';
+  display: block;
+  width: 60%;
+  height: 6px;
+  background: var(--accent);
+  border-radius: 3px;
+  opacity: 0.15;
+  animation: admin-trend-pulse 1.4s ease-in-out infinite;
+}
+@keyframes admin-trend-pulse {
+  0%, 100% { opacity: 0.15; }
+  50%      { opacity: 0.45; }
+}
+
+.admin-trend-empty,
+.admin-trend-error {
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+.admin-trend-error { color: var(--status-pending); }
+
+.trend-svg {
+  display: block;
+  width: 100%;
+  height: 120px;
+  overflow: visible;
+}
+.trend-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.trend-area {
+  fill: var(--accent);
+  fill-opacity: 0.12;
+}
+.trend-point {
+  fill: var(--accent);
+  stroke: var(--bg-elevated);
+  stroke-width: 1.5;
+}
+.trend-axis-label {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  fill: var(--text-muted);
+  text-anchor: middle;
+}
+
+/* -------------------------------------------------------------------------
    Tabs
    ------------------------------------------------------------------------- */
 .admin-tabs {
@@ -1023,7 +1135,10 @@
 @media (prefers-reduced-motion: reduce) {
   .admin-sidebar,
   .admin-sidebar-scrim,
-  .rail-overview-donut-segment {
+  .rail-overview-donut-segment,
+  .admin-trend-range,
+  .admin-trend-body.is-loading::after {
     transition: none;
+    animation: none;
   }
 }

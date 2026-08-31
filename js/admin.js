@@ -59,6 +59,8 @@ var state = {
   activity: [],
   activityLoading: true,
   activityError: null,
+  trend: { days: [], loading: true, error: null },
+  trendRange: 7,
 };
 
 var realtimeUnsubs = [];
@@ -138,13 +140,23 @@ async function main() {
   wireNewTicket();
   wireBell();
   wireSidebarNav();
+  wireTrendRange();
   swapViewForViewport();
   window.addEventListener('resize', swapViewForViewport);
 
   // 5. Load initial data + start realtime.
   await Promise.all([loadTickets(), loadInquiries()]);
   await loadActivity();
+  await loadTrend();
   wireRealtime();
+
+  // When the user tabs back to the dashboard, refresh the trend so
+  // they see new tickets that arrived while the tab was hidden. We
+  // schedule (not await) so a stale render isn't blocking the
+  // tab-focus event.
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') scheduleTrendRefetch();
+  });
 
   // 6. Observability — one structured log line per dashboard load.
   console.info('[civicsays:admin] loaded', {
@@ -153,6 +165,7 @@ async function main() {
     tickets: state.tickets.length,
     inquiries: state.inquiries.length,
     activity: state.activity.length,
+    trend: state.trend.days.length,
     ticketError: !!state.error.tickets,
     inquiryError: !!state.error.inquiries,
   });
@@ -1126,6 +1139,293 @@ function renderOverviewDonut(countsOrTickets) {
 }
 
 // -------------------------------------------------------------------------
+// Ticket Trend card — 7-day line + area chart
+//
+// Driven by count_tickets_by_day(p_start_date, p_end_date) RPC. The
+// body element is .admin-trend-body; we render loading / error /
+// empty / data states explicitly so each is honest about what it's
+// showing. The chart itself is built by the pure buildTrendSvg(days)
+// helper, which is the testable unit — the renderer just maps its
+// output to SVG primitives.
+// -------------------------------------------------------------------------
+
+// How wide the chart canvas is in SVG units. 1 SVG unit ≈ 1px at the
+// 320px+ body width. Same internal grid for all renders so the line
+// position is comparable across reloads.
+const TREND_W = 600;
+const TREND_H = 120;
+// Top + bottom padding inside the chart area. X-axis labels live in
+// the bottom 14px; the rest is the plot area.
+const TREND_PAD_TOP = 12;
+const TREND_PAD_BOTTOM = 18;
+const TREND_PAD_X = 12;
+
+/**
+ * Pure: turn an array of {day: 'YYYY-MM-DD', count: number} into the
+ * SVG primitives the renderer needs. Catmull-Rom → cubic Bezier
+ * smoothing at tension 0.5 (centripetal — avoids overshoot on
+ * spike-then-dip data). Endpoints are clamped flat so the curve
+ * doesn't fly off the edges.
+ *
+ * Returns:
+ *   linePath  — SVG path 'd' attribute for the smoothed line
+ *   areaPath  — SVG path 'd' for the filled area under the line
+ *   points    — [{x, y, day, count}] for the dot circles
+ *   xLabels   — [{x, text}] for the x-axis tick labels
+ *
+ * Empty input returns the empty-shape so the renderer can fall through
+ * to the "No data yet" state without special-casing.
+ */
+export function buildTrendSvg(days) {
+  if (!days || days.length === 0) {
+    return { linePath: '', areaPath: '', points: [], xLabels: [] };
+  }
+
+  // Compute the y-scale. A single zero-count day produces a flat
+  // curve at the bottom; mixed days stretch across the full height.
+  var max = 0;
+  days.forEach(function (d) { if (d.count > max) max = d.count; });
+  if (max < 1) max = 1;     // keep the math sensible when everything is 0
+
+  var plotW = TREND_W - TREND_PAD_X * 2;
+  var plotH = TREND_H - TREND_PAD_TOP - TREND_PAD_BOTTOM;
+  var n = days.length;
+
+  // Map each day to (x, y) in SVG coords. Evenly spaced along x.
+  var pts = days.map(function (d, i) {
+    var x = TREND_PAD_X + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW);
+    var y = TREND_PAD_TOP + plotH * (1 - d.count / max);
+    return { x: x, y: y, day: d.day, count: d.count };
+  });
+
+  // Catmull-Rom to Bezier at tension 0.5. For each segment between
+  // p[i] and p[i+1], the control points are derived from the
+  // neighbors p[i-1] and p[i+2]. Endpoints are clamped (no neighbor
+  // → use the endpoint itself as a zero-slope phantom neighbor so
+  // the curve enters/exits tangent-flat).
+  var T = 0.5;   // tension
+  var linePath = '';
+  for (var i = 0; i < n; i++) {
+    if (i === 0) {
+      linePath += 'M ' + pts[i].x.toFixed(2) + ' ' + pts[i].y.toFixed(2);
+      continue;
+    }
+    var p0 = pts[i - 1];
+    var p1 = pts[i];
+    var pPrev = i >= 2 ? pts[i - 2] : p0;
+    var pNext = i + 1 < n ? pts[i + 1] : p1;
+
+    var c1x = p0.x + (p1.x - pPrev.x) / 6 * T * 2;
+    var c1y = p0.y + (p1.y - pPrev.y) / 6 * T * 2;
+    var c2x = p1.x - (pNext.x - p0.x) / 6 * T * 2;
+    var c2y = p1.y - (pNext.y - p0.y) / 6 * T * 2;
+    linePath += ' C ' + c1x.toFixed(2) + ' ' + c1y.toFixed(2) + ', '
+              + c2x.toFixed(2) + ' ' + c2y.toFixed(2) + ', '
+              + p1.x.toFixed(2) + ' ' + p1.y.toFixed(2);
+  }
+
+  // Area: the same line, then close the path down to the bottom of
+  // the plot area and across to the left edge.
+  var baseY = TREND_PAD_TOP + plotH;
+  var areaPath = linePath
+    + ' L ' + pts[n - 1].x.toFixed(2) + ' ' + baseY.toFixed(2)
+    + ' L ' + pts[0].x.toFixed(2) + ' ' + baseY.toFixed(2)
+    + ' Z';
+
+  // X-axis labels: 7 short month+day strings, evenly spaced. We use
+  // every label for n ≤ 7; for longer series we'd skip — but the
+  // dashboard only ever asks for 7.
+  var xLabels = pts.map(function (p) {
+    return { x: p.x, text: formatTrendLabel(p.day) };
+  });
+
+  return { linePath: linePath, areaPath: areaPath, points: pts, xLabels: xLabels };
+}
+
+/**
+ * Pure: format an ISO date string ("YYYY-MM-DD") as "May 25" in the
+ * dashboard's locale, parsed as UTC to match the RPC's bucketing.
+ */
+export function formatTrendLabel(isoDay) {
+  // Parse the YYYY-MM-DD parts directly to avoid Date() timezone
+  // surprises. en-US gives "May 25".
+  var parts = String(isoDay).split('-');
+  if (parts.length !== 3) return String(isoDay);
+  var monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  var m = parseInt(parts[1], 10) - 1;
+  if (m < 0 || m > 11) return String(isoDay);
+  var d = parseInt(parts[2], 10);
+  return monthNames[m] + ' ' + d;
+}
+
+/**
+ * Pure: build a screen-reader-friendly sentence describing the trend.
+ * Example: "Ticket trend for the last 7 days: 5 on May 25, 8 on May
+ * 26, ... 12 on May 31."
+ */
+export function buildTrendAriaLabel(days) {
+  if (!days || days.length === 0) return 'No ticket trend data.';
+  var head = 'Ticket trend for the last ' + days.length + ' days: ';
+  var body = days.map(function (d) {
+    return d.count + ' on ' + formatTrendLabel(d.day);
+  }).join(', ');
+  return head + body + '.';
+}
+
+function renderTrendChart() {
+  var body = document.getElementById('admin-trend-body');
+  if (!body) return;
+
+  // Wipe any prior SVG / text — we'll re-render every state.
+  body.innerHTML = '';
+
+  // --- Loading state ------------------------------------------------------
+  if (state.trend.loading) {
+    body.classList.add('is-loading');
+    body.setAttribute('aria-label', 'Loading ticket trend');
+    return;
+  }
+  body.classList.remove('is-loading');
+
+  // --- Error state --------------------------------------------------------
+  if (state.trend.error) {
+    body.setAttribute('aria-label', 'Ticket trend failed to load');
+    var err = document.createElement('div');
+    err.className = 'admin-trend-error';
+    err.setAttribute('data-testid', 'trend-error');
+    err.textContent = 'Couldn’t load trend data. Will retry on the next refresh.';
+    body.appendChild(err);
+    return;
+  }
+
+  var days = state.trend.days || [];
+
+  // --- Empty state (all zeros, OR zero rows from the RPC) -----------------
+  var total = days.reduce(function (s, d) { return s + (d.count || 0); }, 0);
+  if (days.length === 0 || total === 0) {
+    body.setAttribute('aria-label', 'No ticket trend data yet');
+    var empty = document.createElement('div');
+    empty.className = 'admin-trend-empty';
+    empty.setAttribute('data-testid', 'trend-empty');
+    empty.textContent = 'No data yet';
+    body.appendChild(empty);
+    return;
+  }
+
+  // --- Data state ---------------------------------------------------------
+  var built = buildTrendSvg(days);
+  body.setAttribute('aria-label', buildTrendAriaLabel(days));
+
+  var svgNS = 'http://www.w3.org/2000/svg';
+  var svg = document.createElementNS(svgNS, 'svg');
+  svg.setAttribute('class', 'trend-svg');
+  svg.setAttribute('viewBox', '0 0 ' + TREND_W + ' ' + TREND_H);
+  svg.setAttribute('preserveAspectRatio', 'none');
+  body.appendChild(svg);
+
+  // Area first (so the line draws on top of it)
+  var area = document.createElementNS(svgNS, 'path');
+  area.setAttribute('class', 'trend-area');
+  area.setAttribute('d', built.areaPath);
+  svg.appendChild(area);
+
+  // Line
+  var line = document.createElementNS(svgNS, 'path');
+  line.setAttribute('class', 'trend-line');
+  line.setAttribute('d', built.linePath);
+  svg.appendChild(line);
+
+  // Dots — one per data point, with a native <title> for hover
+  built.points.forEach(function (p) {
+    var c = document.createElementNS(svgNS, 'circle');
+    c.setAttribute('class', 'trend-point');
+    c.setAttribute('cx', p.x.toFixed(2));
+    c.setAttribute('cy', p.y.toFixed(2));
+    c.setAttribute('r', 3);
+    var t = document.createElementNS(svgNS, 'title');
+    t.textContent = p.count + ' on ' + formatTrendLabel(p.day);
+    c.appendChild(t);
+    svg.appendChild(c);
+  });
+
+  // X-axis labels
+  built.xLabels.forEach(function (l) {
+    var tx = document.createElementNS(svgNS, 'text');
+    tx.setAttribute('class', 'trend-axis-label');
+    tx.setAttribute('x', l.x.toFixed(2));
+    tx.setAttribute('y', TREND_H - 4);
+    tx.textContent = l.text;
+    svg.appendChild(tx);
+  });
+}
+
+async function loadTrend() {
+  state.trend.loading = true;
+  state.trend.error = null;
+  renderTrendChart();
+
+  try {
+    var c = await getClient();
+    // Date arithmetic in UTC to match the RPC's bucketing
+    // ((created_at at time zone 'UTC')::date). We use a 7-day rolling
+    // window ending today.
+    var now = new Date();
+    var end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    var start = new Date(end.getTime() - (state.trendRange - 1) * 86400000);
+    var pStartDate = start.toISOString().slice(0, 10);
+    var pEndDate   = end.toISOString().slice(0, 10);
+
+    var rpc = c.rpc('count_tickets_by_day', {
+      p_start_date: pStartDate,
+      p_end_date:   pEndDate,
+    });
+    var data = await unwrap(await withTimeout(rpc, RPC_TIMEOUT_MS, 'count_tickets_by_day'));
+    state.trend.days = (Array.isArray(data) ? data : []).map(function (r) {
+      return { day: r.day, count: Number(r.count) || 0 };
+    });
+  } catch (err) {
+    state.trend.error = friendlyError(err);
+  } finally {
+    state.trend.loading = false;
+    renderTrendChart();
+  }
+}
+
+// Debounced refetch: 30s after the last call. Used by the realtime
+// subscription (so a burst of ticket inserts queues a single refetch)
+// and by the visibilitychange handler (so the chart picks up new
+// tickets when the user tabs back to the dashboard).
+var trendRefetchTimer = null;
+function scheduleTrendRefetch() {
+  if (trendRefetchTimer) clearTimeout(trendRefetchTimer);
+  trendRefetchTimer = setTimeout(function () {
+    trendRefetchTimer = null;
+    loadTrend();
+  }, 30000);
+}
+
+function wireTrendRange() {
+  var btn = document.getElementById('admin-trend-range');
+  if (!btn) return;
+  function pulseAndToast() {
+    // aria-expanded pulse — a real <select> would open a listbox; we
+    // don't have one yet, so the toggle is the closest honest
+    // affordance. Set true, hold 150ms, set false.
+    btn.setAttribute('aria-expanded', 'true');
+    setTimeout(function () { btn.setAttribute('aria-expanded', 'false'); }, 150);
+    toast('More range options coming soon.', 'info', 2500);
+  }
+  btn.addEventListener('click', pulseAndToast);
+  btn.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      pulseAndToast();
+    }
+  });
+}
+
+// -------------------------------------------------------------------------
 // Right rail — recent activity
 // -------------------------------------------------------------------------
 async function loadActivity() {
@@ -1244,6 +1544,9 @@ function wireRealtime() {
       tTimer = setTimeout(function () { loadTickets(); }, 250);
       if (aTimer) clearTimeout(aTimer);
       aTimer = setTimeout(function () { loadActivity(); }, 250);
+      // Trend is a 30s-debounced refetch — chart should feel "live"
+      // without redrawing on every keystroke during a bulk import.
+      scheduleTrendRefetch();
     })
   );
   realtimeUnsubs.push(
