@@ -16,6 +16,11 @@ const SAMPLE = {
   kind: 'report',
   title: 'Loud karaoke at 2 AM',
   resident_name: 'Renato M.',
+  // Assignee fields (Change 3). Defaults to null = Unassigned so the
+  // existing specs continue to assert the "Unassigned" rendering
+  // without further changes.
+  assigned_official_id: null,
+  assigned_official_name: null,
   created_at: new Date('2025-08-30T10:00:00Z').toISOString(),
 };
 
@@ -75,15 +80,41 @@ describe('buildTicketRow', function () {
     expect(weird.getAttribute('data-status')).toBe('');
   });
 
-  it('renders 5 cells in the documented column order', function () {
+  it('renders 6 cells in the documented column order', function () {
     var tr = buildTicketRow(SAMPLE);
     var cells = tr.querySelectorAll('td');
-    expect(cells.length).toBe(5);
+    expect(cells.length).toBe(6);
     expect(cells[0].textContent).toBe('CIV-DEMOB1');            // ID
     expect(cells[1].textContent).toContain('Loud karaoke');       // Issue
     expect(cells[2].textContent).toContain('Renato M.');          // Resident
-    expect(cells[3].textContent).toContain('In Process');         // Status
-    // Cells[4] = Updated (relative time string)
-    expect(cells[4].textContent.length).toBeGreaterThan(0);
+    expect(cells[3].textContent).toBe('Unassigned');              // Assignee (no id)
+    expect(cells[3].classList.contains('is-unassigned')).toBe(true);
+    expect(cells[4].textContent).toContain('In Process');         // Status
+    // Cells[5] = Updated (relative time string)
+    expect(cells[5].textContent.length).toBeGreaterThan(0);
+  });
+
+  it('shows the assigned official name (not "Unassigned") when the row has an assignee', function () {
+    var assigned = Object.assign({}, SAMPLE, {
+      assigned_official_id: '11111111-2222-3333-4444-555555555555',
+      assigned_official_name: 'Maria Chen',
+    });
+    var tr = buildTicketRow(assigned);
+    var cells = tr.querySelectorAll('td');
+    expect(cells.length).toBe(6);
+    expect(cells[3].textContent).toBe('Maria Chen');
+    expect(cells[3].classList.contains('is-unassigned')).toBe(false);
+    expect(cells[3].getAttribute('title')).toBe('Maria Chen');
+  });
+
+  it('falls back to "Unknown" when the id is set but the name is missing', function () {
+    var orphan = Object.assign({}, SAMPLE, {
+      assigned_official_id: '11111111-2222-3333-4444-555555555555',
+      assigned_official_name: null,
+    });
+    var tr = buildTicketRow(orphan);
+    var cells = tr.querySelectorAll('td');
+    expect(cells[3].textContent).toBe('Unknown');
+    expect(cells[3].classList.contains('is-unassigned')).toBe(false);
   });
 });

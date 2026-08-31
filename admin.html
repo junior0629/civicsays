@@ -183,19 +183,44 @@
 
         <section id="panel-tickets" role="tabpanel" aria-labelledby="tab-tickets"
                  class="admin-panel" data-testid="panel-tickets">
-          <div class="admin-filters" data-testid="status-filter" role="group" aria-label="Filter by status">
-            <span class="filter-label">Status</span>
-            <button type="button" class="filter-pill is-active" data-status="" data-testid="filter-status-all">All</button>
-            <button type="button" class="filter-pill" data-status="pending" data-testid="filter-status-pending">Pending</button>
-            <button type="button" class="filter-pill" data-status="in_process" data-testid="filter-status-in_process">In Process</button>
-            <button type="button" class="filter-pill" data-status="hold" data-testid="filter-status-hold">On Hold</button>
-            <button type="button" class="filter-pill" data-status="solved" data-testid="filter-status-solved">Solved</button>
-          </div>
-          <div class="admin-filters" data-testid="kind-filter" role="group" aria-label="Filter by kind">
-            <span class="filter-label">Type</span>
-            <button type="button" class="filter-pill is-active" data-kind="" data-testid="filter-kind-all">All</button>
-            <button type="button" class="filter-pill" data-kind="request" data-testid="filter-kind-request">Request</button>
-            <button type="button" class="filter-pill" data-kind="report" data-testid="filter-kind-report">Report</button>
+          <!--
+            Filter bar — Status + Type + Assignee + Date rows in a single
+            .admin-filter-bar wrapper so the "Clear all" link can hang
+            off the right edge. The pill rows themselves use the same
+            .admin-filters class as the other filter groups in the app
+            (see style/admin.css:695-736).
+          -->
+          <div class="admin-filter-bar">
+            <div class="admin-filters" data-testid="status-filter" role="group" aria-label="Filter by status">
+              <span class="filter-label">Status</span>
+              <button type="button" class="filter-pill is-active" data-status="" data-testid="filter-status-all">All</button>
+              <button type="button" class="filter-pill" data-status="pending" data-testid="filter-status-pending">Pending</button>
+              <button type="button" class="filter-pill" data-status="in_process" data-testid="filter-status-in_process">In Process</button>
+              <button type="button" class="filter-pill" data-status="hold" data-testid="filter-status-hold">On Hold</button>
+              <button type="button" class="filter-pill" data-status="solved" data-testid="filter-status-solved">Solved</button>
+            </div>
+            <div class="admin-filters" data-testid="kind-filter" role="group" aria-label="Filter by kind">
+              <span class="filter-label">Type</span>
+              <button type="button" class="filter-pill is-active" data-kind="" data-testid="filter-kind-all">All</button>
+              <button type="button" class="filter-pill" data-kind="request" data-testid="filter-kind-request">Request</button>
+              <button type="button" class="filter-pill" data-kind="report" data-testid="filter-kind-report">Report</button>
+            </div>
+            <div class="admin-filters" data-testid="assignee-filter" role="group" aria-label="Filter by assignee">
+              <span class="filter-label">Assignee</span>
+              <button type="button" class="filter-pill is-active" data-assignee="" data-testid="filter-assignee-all">All</button>
+              <button type="button" class="filter-pill" data-assignee="unassigned" data-testid="filter-assignee-unassigned">Unassigned</button>
+              <!-- additional pills per active official filled by js/admin.js after loadOfficials() -->
+            </div>
+            <div class="admin-filters" data-testid="date-filter" role="group" aria-label="Filter by date">
+              <span class="filter-label">Date</span>
+              <button type="button" class="filter-pill filter-pill--chip" id="admin-date-chip"
+                      data-testid="filter-date" aria-haspopup="listbox" aria-expanded="false">
+                <span>Any date</span>
+                <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-chevron-down"></use></svg>
+              </button>
+            </div>
+            <a href="#" class="admin-filters-clear" id="admin-filters-clear"
+               data-testid="filters-clear" hidden>Clear all</a>
           </div>
           <div class="admin-table-wrap" id="ticket-table-wrap" data-view="table">
             <table class="admin-table" id="ticket-table">
@@ -204,6 +229,7 @@
                   <th scope="col">Ticket ID</th>
                   <th scope="col">Issue</th>
                   <th scope="col">Resident</th>
+                  <th scope="col">Assignee</th>
                   <th scope="col">Status</th>
                   <th scope="col">Updated</th>
                 </tr>

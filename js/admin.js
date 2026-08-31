@@ -20,6 +20,7 @@ import {
   getClient,
   unwrap,
   friendlyError,
+  T,
 } from './supabase.js';
 import { getCurrentOfficial, signOut } from './auth.js';
 import {
@@ -52,6 +53,7 @@ var state = {
   statusFilter: '',
   kindFilter: '',
   inqStatusFilter: '',
+  assigneeFilter: '',
   tickets: [],
   inquiries: [],
   loading: { tickets: true, inquiries: true },
@@ -61,6 +63,13 @@ var state = {
   activityError: null,
   trend: { days: [], loading: true, error: null },
   trendRange: 7,
+  // Filter pills upgrade (Change 3): whole-table counts + officials
+  // list. `ticketCounts` already exists (set in loadTickets). The
+  // other two are filled by loadAssigneeCounts / loadOfficials and
+  // stay null when their respective RPC fails — every renderer is
+  // written to degrade gracefully on null.
+  assigneeCounts: null,   // { [officialId|'unassigned']: number }
+  officials: [],          // [{ id, full_name }] active only
 };
 
 var realtimeUnsubs = [];
@@ -133,6 +142,9 @@ async function main() {
   wireTabs();
   wireStatusFilters();
   wireKindFilters();
+  wireAssigneeFilters();
+  wireDateChip();
+  wireClearAllFilters();
   wireInquiryStatusFilters();
   wireSearch();
   wireKeyboardShortcuts();
@@ -146,10 +158,24 @@ async function main() {
   window.addEventListener('resize', swapViewForViewport);
 
   // 5. Load initial data + start realtime.
-  await Promise.all([loadTickets(), loadInquiries()]);
+  // loadOfficials() drives the Assignee filter pills; safe to fail
+  // (the renderer just shows All + Unassigned). Same for
+  // loadAssigneeCounts() — counts degrade to 0.
+  await Promise.all([
+    loadOfficials(),
+    loadTickets(),
+    loadInquiries(),
+  ]);
   await loadActivity();
   await loadTrend();
   wireRealtime();
+  // First-pass UI sync: render pill counts + assignee pill list now
+  // that we have data, and re-render the type counts after the table
+  // finishes its initial paint.
+  renderStatusPillCounts();
+  renderTypePillCounts();
+  renderAssigneePills();
+  updateClearAllVisibility();
 
   // When the user tabs back to the dashboard, refresh the trend so
   // they see new tickets that arrived while the tab was hidden. We
@@ -342,6 +368,224 @@ function wireKindFilters() {
   });
 }
 
+// -------------------------------------------------------------------------
+// Filter pills upgrade (Change 3) — Assignee + Date + Clear all
+// -------------------------------------------------------------------------
+
+// Wire the Assignee pill row. Like wireKindFilters but each pill has
+// data-assignee (which is either '' for All, 'unassigned', or a uuid).
+// Pills are re-rendered on every renderAssigneePills() call so the
+// per-official pills can be added/removed as the officials list
+// changes — the click handler lives on the row, not on each pill, so
+// the listener survives every re-render.
+function wireAssigneeFilters() {
+  var row = document.querySelector('[data-testid="assignee-filter"]');
+  if (!row) return;
+  row.addEventListener('click', function (e) {
+    var btn = e.target.closest('.filter-pill');
+    if (!btn) return;
+    var val = btn.dataset.assignee || '';
+    applyAssigneeFilter(val);
+  });
+}
+
+function applyAssigneeFilter(value) {
+  state.assigneeFilter = value || '';
+  var row = document.querySelector('[data-testid="assignee-filter"]');
+  if (row) {
+    row.querySelectorAll('.filter-pill').forEach(function (b) {
+      var match = (b.dataset.assignee || '') === state.assigneeFilter;
+      b.classList.toggle('is-active', match);
+    });
+  }
+  loadTickets();
+}
+
+// Date chip — honest stub. Toasts "More date options coming soon."
+// and pulses aria-expanded for ~150ms. Same pattern as wireTrendRange
+// from Change 1. There is no real date filter yet; the chip always
+// reads "Any date".
+function wireDateChip() {
+  var chip = document.getElementById('admin-date-chip');
+  if (!chip) return;
+  function pulse() {
+    chip.setAttribute('aria-expanded', 'true');
+    setTimeout(function () { chip.setAttribute('aria-expanded', 'false'); }, 150);
+  }
+  chip.addEventListener('click', function () {
+    pulse();
+    toast('More date options coming soon.', 'info', 2500);
+  });
+  chip.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      pulse();
+      toast('More date options coming soon.', 'info', 2500);
+    }
+  });
+}
+
+// Clear-all link — resets every filter to "All" and re-renders.
+// Hidden when no filters are active (see updateClearAllVisibility).
+function wireClearAllFilters() {
+  var link = document.getElementById('admin-filters-clear');
+  if (!link) return;
+  link.addEventListener('click', function (e) {
+    e.preventDefault();
+    var anyChange =
+      state.statusFilter   ||
+      state.kindFilter     ||
+      state.assigneeFilter;
+    if (!anyChange) return;
+    // Reset each filter; the applyX helpers re-sync the active pill
+    // + reload. We pass false for "don't re-load between each one" by
+    // setting state.* first, then firing a single loadTickets() at the
+    // end. applyStatusFilter always reloads, so we let it be the last
+    // one to fire and call applyAssigneeFilter('') first which also
+    // reloads. Order doesn't matter much because the second reload
+    // wins; the table ends up with no filter.
+    state.kindFilter     = '';
+    state.assigneeFilter = '';
+    // Re-sync the type pills' active state directly (no helper yet —
+    // kind filter changes call loadTickets but also toggle classes).
+    var kindRow = document.querySelector('[data-testid="kind-filter"]');
+    if (kindRow) {
+      kindRow.querySelectorAll('.filter-pill').forEach(function (b) {
+        b.classList.toggle('is-active', (b.dataset.kind || '') === '');
+      });
+    }
+    // Apply assignee (this calls loadTickets)
+    applyAssigneeFilter('');
+    // Then status — applyStatusFilter also calls loadTickets, but the
+    // final call wins.
+    applyStatusFilter('');
+    // Date chip: nothing real to reset (it's a stub), but the active
+    // class is never set on it, so no work needed.
+    updateClearAllVisibility();
+  });
+}
+
+// Show or hide the Clear-all link based on whether any filter is
+// active. Called after every loadTickets() and after the link's own
+// click handler.
+function updateClearAllVisibility() {
+  var link = document.getElementById('admin-filters-clear');
+  if (!link) return;
+  var anyActive = !!(state.statusFilter || state.kindFilter || state.assigneeFilter);
+  if (anyActive) link.removeAttribute('hidden');
+  else link.setAttribute('hidden', '');
+}
+
+// Render one pill per active official into the Assignee pill row.
+// Called after loadOfficials() and on every assignee-count update.
+// Existing "All" + "Unassigned" pills in the HTML are preserved — we
+// only APPEND per-official pills. The per-official pills are removed
+// first so re-renders are idempotent.
+function renderAssigneePills() {
+  var row = document.querySelector('[data-testid="assignee-filter"]');
+  if (!row) return;
+  // Remove existing per-official pills (anything with a uuid-looking
+  // data-assignee). Keep the two base pills (data-assignee='' and
+  // data-assignee='unassigned') since they are hand-written in HTML.
+  var all = row.querySelectorAll('.filter-pill');
+  all.forEach(function (b) {
+    var a = b.dataset.assignee || '';
+    if (a && a !== 'unassigned') b.remove();
+  });
+  if (!Array.isArray(state.officials) || state.officials.length === 0) return;
+  // Append in display order (officials are already sorted by
+  // full_name in loadOfficials()).
+  state.officials.forEach(function (o) {
+    var pill = document.createElement('button');
+    pill.type = 'button';
+    pill.className = 'filter-pill';
+    pill.setAttribute('data-assignee', o.id);
+    pill.setAttribute('data-testid', 'filter-assignee-' + o.id);
+    var label = document.createElement('span');
+    label.className = 'pill-label';
+    label.textContent = truncate(o.full_name, 22);
+    pill.appendChild(label);
+    pill.appendChild(buildPillCountNode(countForAssignee(o.id)));
+    row.appendChild(pill);
+  });
+  // Re-sync the active state in case renderAssigneePills() was
+  // called after the user had already picked an assignee.
+  applyAssigneeFilter(state.assigneeFilter);
+}
+
+function countForAssignee(id) {
+  if (!state.assigneeCounts) return 0;
+  var v = state.assigneeCounts[id];
+  return typeof v === 'number' ? v : 0;
+}
+
+function countForAssigneeUnassigned() {
+  if (!state.assigneeCounts) return 0;
+  var v = state.assigneeCounts['unassigned'];
+  return typeof v === 'number' ? v : 0;
+}
+
+// Build a <span class="pill-count">N</span> for a filter pill.
+function buildPillCountNode(n) {
+  var span = document.createElement('span');
+  span.className = 'pill-count';
+  span.setAttribute('data-testid', 'pill-count');
+  span.textContent = String(n);
+  return span;
+}
+
+// Update the count chip inside every Status pill + the Unassigned
+// pill's count. "All" Status pill = sum of the four statuses.
+// Re-runs every time state.ticketCounts changes (loadTickets).
+function renderStatusPillCounts() {
+  var row = document.querySelector('[data-testid="status-filter"]');
+  if (!row) return;
+  var counts = state.ticketCounts || { pending: 0, in_process: 0, hold: 0, solved: 0 };
+  var total = counts.pending + counts.in_process + counts.hold + counts.solved;
+  row.querySelectorAll('.filter-pill').forEach(function (b) {
+    var key = b.dataset.status || '';
+    var n = (key === '') ? total : (counts[key] || 0);
+    setPillCount(b, n);
+  });
+  // Unassigned pill count lives in the Assignee row.
+  var unRow = document.querySelector('[data-testid="assignee-filter"]');
+  if (unRow) {
+    var un = unRow.querySelector('.filter-pill[data-assignee="unassigned"]');
+    if (un) setPillCount(un, countForAssigneeUnassigned());
+  }
+}
+
+// In-memory Type pill counts — derived from the current state.tickets
+// slice. Recomputed on every renderTicketsTable() so they stay in
+// sync with the user's current Status/Kind/Assignee filter combo.
+// (The user explicitly chose this over a new count_tickets_by_kind
+// RPC — the table is at most 50 rows so derivation is cheap.)
+function renderTypePillCounts() {
+  var row = document.querySelector('[data-testid="kind-filter"]');
+  if (!row) return;
+  var tickets = Array.isArray(state.tickets) ? state.tickets : [];
+  var c = { request: 0, report: 0 };
+  tickets.forEach(function (t) { if (c[t.kind] != null) c[t.kind]++; });
+  var total = c.request + c.report;
+  row.querySelectorAll('.filter-pill').forEach(function (b) {
+    var key = b.dataset.kind || '';
+    var n = (key === '') ? total : (c[key] || 0);
+    setPillCount(b, n);
+  });
+}
+
+// Set or insert the count chip on a filter pill. Idempotent — finds
+// any existing .pill-count and updates it, or appends a new one.
+function setPillCount(pill, n) {
+  if (!pill) return;
+  var existing = pill.querySelector('.pill-count');
+  if (existing) {
+    existing.textContent = String(n);
+    return;
+  }
+  pill.appendChild(buildPillCountNode(n));
+}
+
 function wireInquiryStatusFilters() {
   var row = document.querySelector('[data-testid="inquiry-status-filter"]');
   if (!row) return;
@@ -528,24 +772,37 @@ async function loadTickets() {
 
   try {
     var c = await getClient();
-    // Two parallel RPCs:
+    // Three parallel RPCs:
     //   1. list_staff_tickets (paginated, 50 most-recent) — drives the
-    //      table list with the active status + kind filter.
+    //      table list with the active status / kind / assignee filter.
     //   2. count_tickets_by_status (aggregate, no LIMIT) — drives the
     //      KPI cards and the "All tickets" donut, so the headline
     //      counts reflect the WHOLE table, not just the visible slice.
+    //   3. count_tickets_by_assignee (aggregate, no LIMIT) — drives
+    //      the Assignee filter pill counts. A failure here is
+    //      non-fatal: the pills still render with `(0)`.
     // The dashboard was previously computing KPI counts from the
     // paginated 50-row slice, which made the donut lie once the table
     // exceeded ~50 rows.
-    var listRpc = c.rpc('list_staff_tickets', {
-      p_status_filter: state.statusFilter || null,
-      p_kind_filter:   state.kindFilter   || null,
+    var listRpc    = c.rpc('list_staff_tickets', {
+      p_status_filter:   state.statusFilter   || null,
+      p_kind_filter:     state.kindFilter     || null,
+      p_assignee_filter: state.assigneeFilter || null,
       p_limit: 50,
     });
-    var countRpc = c.rpc('count_tickets_by_status');
+    var countRpc   = c.rpc('count_tickets_by_status');
+    var assigneeRpc = c.rpc('count_tickets_by_assignee');
 
-    var listData   = await unwrap(await withTimeout(listRpc,  RPC_TIMEOUT_MS, 'list_staff_tickets'));
-    var countData  = await unwrap(await withTimeout(countRpc, RPC_TIMEOUT_MS, 'count_tickets_by_status'));
+    var listData      = await unwrap(await withTimeout(listRpc,     RPC_TIMEOUT_MS, 'list_staff_tickets'));
+    var countData     = await unwrap(await withTimeout(countRpc,    RPC_TIMEOUT_MS, 'count_tickets_by_status'));
+    // The assignee RPC failure is non-fatal — leave the prior counts
+    // in place so the pills don't flicker to 0 on a transient error.
+    try {
+      var assigneeData = await unwrap(await withTimeout(assigneeRpc, RPC_TIMEOUT_MS, 'count_tickets_by_assignee'));
+      state.assigneeCounts = countsFromAssigneeRpc(Array.isArray(assigneeData) ? assigneeData : []);
+    } catch (innerErr) {
+      console.warn('[civicsays:admin] assignee count RPC failed (non-fatal):', innerErr);
+    }
 
     state.tickets      = Array.isArray(listData) ? listData : [];
     state.ticketCounts = countsFromRpc(Array.isArray(countData) ? countData : []);
@@ -556,6 +813,10 @@ async function loadTickets() {
     renderTicketsTable();
     renderKpiCards(state.ticketCounts);
     renderOverviewDonut(state.ticketCounts);
+    renderStatusPillCounts();
+    renderTypePillCounts();
+    renderAssigneePills();
+    updateClearAllVisibility();
   }
 }
 
@@ -568,6 +829,44 @@ function countsFromRpc(rows) {
     if (out[r.status] != null) out[r.status] = Number(r.count) || 0;
   });
   return out;
+}
+
+// Normalize the count_tickets_by_assignee RPC payload into a flat
+// { [officialId|'unassigned']: number } map. NULL ids from the RPC
+// become the special 'unassigned' key. Unknown ids are preserved so
+// the JS side can render a pill for an official who later gets
+// deactivated (the row would be hidden via the officials filter).
+function countsFromAssigneeRpc(rows) {
+  var out = {};
+  rows.forEach(function (r) {
+    var key = r.assigned_official_id == null ? 'unassigned' : r.assigned_official_id;
+    out[key] = Number(r.count) || 0;
+  });
+  return out;
+}
+
+// Load the active officials list — drives the per-official Assignee
+// pills. Called once from main() before loadTickets so the pills are
+// in place when the table renders. Failures are non-fatal: the row
+// stays as just "All" + "Unassigned".
+async function loadOfficials() {
+  try {
+    var c = await getClient();
+    var data = await unwrap(
+      await withTimeout(
+        c.from(T.OFFICIALS)
+          .select('id, full_name')
+          .eq('is_active', true)
+          .order('full_name', { ascending: true }),
+        RPC_TIMEOUT_MS,
+        'loadOfficials'
+      )
+    );
+    state.officials = Array.isArray(data) ? data : [];
+  } catch (err) {
+    console.warn('[civicsays:admin] loadOfficials failed (non-fatal):', err);
+    state.officials = [];
+  }
 }
 
 function renderTicketsTable() {
@@ -612,6 +911,11 @@ function renderTicketsTable() {
     var card = buildTicketCard(t);
     if (cards) cards.appendChild(card);
   });
+
+  // Type pill counts depend on what's currently in state.tickets, so
+  // recompute them on every render (the user explicitly chose
+  // in-memory derivation over a new count_tickets_by_kind RPC).
+  renderTypePillCounts();
 }
 
 // Skeleton placeholder rows
@@ -620,7 +924,7 @@ function renderSkeleton(tbody, cards, n) {
     for (var i = 0; i < n; i++) {
       var tr = document.createElement('tr');
       var td = document.createElement('td');
-      td.colSpan = 5;
+      td.colSpan = 6;
       td.className = 'admin-loading';
       td.textContent = 'Loading…';
       tr.appendChild(td);
@@ -639,7 +943,7 @@ function renderError(tbody, cards, msg) {
   if (tbody) {
     var tr = document.createElement('tr');
     var td = document.createElement('td');
-    td.colSpan = 5;
+    td.colSpan = 6;
     td.className = 'admin-error';
     td.textContent = msg;
     tr.appendChild(td);
@@ -657,7 +961,7 @@ function renderEmpty(tbody, cards, title, hint) {
   if (tbody) {
     var tr = document.createElement('tr');
     var td = document.createElement('td');
-    td.colSpan = 5;
+    td.colSpan = 6;
     var wrap = document.createElement('div');
     wrap.className = 'admin-empty';
     var h = document.createElement('p');
@@ -746,9 +1050,19 @@ export function buildTicketCard(t) {
   meta.style.gap = 'var(--space-4)';
   meta.style.fontSize = 'var(--fs-sm)';
   meta.style.color = 'var(--text-muted)';
+  meta.style.flexWrap = 'wrap';
   var who = document.createElement('span');
   who.textContent = t.resident_name || 'Anonymous';
   meta.appendChild(who);
+  // Assignee line — "Assigned to <name>" or "Unassigned". Truncated
+  // to keep the meta row from wrapping awkwardly on narrow viewports.
+  var assigned = document.createElement('span');
+  if (t.assigned_official_id) {
+    assigned.textContent = 'Assigned to ' + truncate(t.assigned_official_name || 'Unknown', 24);
+  } else {
+    assigned.textContent = 'Unassigned';
+  }
+  meta.appendChild(assigned);
   var when = document.createElement('span');
   when.textContent = formatRelative(t.created_at);
   meta.appendChild(when);
@@ -803,6 +1117,21 @@ export function buildTicketRow(t) {
   tdResident.className = 'admin-table-cell-resident';
   tdResident.textContent = t.resident_name || 'Anonymous';
   tr.appendChild(tdResident);
+
+  // Assignee — reads `assigned_official_id` + `assigned_official_name`
+  // directly from the row (the SQL LEFT JOIN supplies both). Null id
+  // → muted italic "Unassigned". Non-null → cell class
+  // `admin-table-cell-assignee` and the name as text.
+  var tdAssignee = document.createElement('td');
+  if (t.assigned_official_id) {
+    tdAssignee.className = 'admin-table-cell-assignee';
+    tdAssignee.textContent = t.assigned_official_name || 'Unknown';
+    tdAssignee.setAttribute('title', t.assigned_official_name || '');
+  } else {
+    tdAssignee.className = 'admin-table-cell-assignee is-unassigned';
+    tdAssignee.textContent = 'Unassigned';
+  }
+  tr.appendChild(tdAssignee);
 
   // Status badge
   var tdStatus = document.createElement('td');
