@@ -80,18 +80,21 @@ describe('buildTicketRow', function () {
     expect(weird.getAttribute('data-status')).toBe('');
   });
 
-  it('renders 6 cells in the documented column order', function () {
+  it('renders 7 cells in the documented column order: ID, Resident, Issue, Type, Assignee, Status, Updated', function () {
     var tr = buildTicketRow(SAMPLE);
     var cells = tr.querySelectorAll('td');
-    expect(cells.length).toBe(6);
+    expect(cells.length).toBe(7);
     expect(cells[0].textContent).toBe('CIV-DEMOB1');            // ID
-    expect(cells[1].textContent).toContain('Loud karaoke');       // Issue
-    expect(cells[2].textContent).toContain('Renato M.');          // Resident
-    expect(cells[3].textContent).toBe('Unassigned');              // Assignee (no id)
-    expect(cells[3].classList.contains('is-unassigned')).toBe(true);
-    expect(cells[4].textContent).toContain('In Process');         // Status
-    // Cells[5] = Updated (relative time string)
-    expect(cells[5].textContent.length).toBeGreaterThan(0);
+    expect(cells[1].textContent).toContain('Renato M.');          // Resident
+    expect(cells[2].textContent).toContain('Loud karaoke');       // Issue
+    expect(cells[3].textContent).toContain(ticketKindLabel('report')); // Type
+    expect(cells[3].classList.contains('admin-table-cell-type')).toBe(true);
+    expect(cells[3].classList.contains('kind-report')).toBe(true);
+    expect(cells[4].textContent).toBe('Unassigned');              // Assignee (no id)
+    expect(cells[4].classList.contains('is-unassigned')).toBe(true);
+    expect(cells[5].textContent).toContain('In Process');         // Status
+    // Cells[6] = Updated (relative time string)
+    expect(cells[6].textContent.length).toBeGreaterThan(0);
   });
 
   it('shows the assigned official name (not "Unassigned") when the row has an assignee', function () {
@@ -101,10 +104,10 @@ describe('buildTicketRow', function () {
     });
     var tr = buildTicketRow(assigned);
     var cells = tr.querySelectorAll('td');
-    expect(cells.length).toBe(6);
-    expect(cells[3].textContent).toBe('Maria Chen');
-    expect(cells[3].classList.contains('is-unassigned')).toBe(false);
-    expect(cells[3].getAttribute('title')).toBe('Maria Chen');
+    expect(cells.length).toBe(7);
+    expect(cells[4].textContent).toBe('Maria Chen');
+    expect(cells[4].classList.contains('is-unassigned')).toBe(false);
+    expect(cells[4].getAttribute('title')).toBe('Maria Chen');
   });
 
   it('falls back to "Unknown" when the id is set but the name is missing', function () {
@@ -114,7 +117,16 @@ describe('buildTicketRow', function () {
     });
     var tr = buildTicketRow(orphan);
     var cells = tr.querySelectorAll('td');
-    expect(cells[3].textContent).toBe('Unknown');
-    expect(cells[3].classList.contains('is-unassigned')).toBe(false);
+    expect(cells[4].textContent).toBe('Unknown');
+    expect(cells[4].classList.contains('is-unassigned')).toBe(false);
+  });
+
+  it('Type chip uses kind-request class for request rows and kind-report for report rows', function () {
+    var req = buildTicketRow(Object.assign({}, SAMPLE, { kind: 'request' }));
+    var rep = buildTicketRow(Object.assign({}, SAMPLE, { kind: 'report' }));
+    var unk = buildTicketRow(Object.assign({}, SAMPLE, { kind: null }));
+    expect(req.querySelector('.admin-table-cell-type.kind-request')).toBeTruthy();
+    expect(rep.querySelector('.admin-table-cell-type.kind-report')).toBeTruthy();
+    expect(unk.querySelector('.admin-table-cell-type.kind-unknown')).toBeTruthy();
   });
 });

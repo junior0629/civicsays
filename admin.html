@@ -70,12 +70,6 @@
               <span>All tickets</span>
             </a>
           </li>
-          <li>
-            <a class="admin-sidebar-link" href="admin.html#inquiries" data-testid="nav-inquiries">
-              <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-message"></use></svg>
-              <span>Inquiries</span>
-            </a>
-          </li>
         </ul>
       </div>
 
@@ -97,33 +91,33 @@
     </div>
   </aside>
 
+  <header class="admin-header">
+    <button class="admin-header-menu" type="button"
+            aria-label="Open navigation" aria-controls="admin-sidebar"
+            data-testid="admin-menu-btn" hidden>
+      <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-menu"></use></svg>
+    </button>
+
+    <div class="admin-header-search">
+      <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-search"></use></svg>
+      <input type="search" placeholder="Search tickets, residents, or ID…"
+             aria-label="Search tickets, residents, or ID"
+             id="admin-search" data-testid="admin-search" autocomplete="off" />
+      <kbd class="kbd">Ctrl K</kbd>
+    </div>
+
+    <div class="admin-header-actions">
+      <button class="admin-header-bell" type="button"
+              aria-label="Notifications, 0 unread" data-testid="admin-bell">
+        <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-bell"></use></svg>
+        <span class="badge-count" aria-hidden="true">0</span>
+      </button>
+      <div class="admin-header-avatar" id="admin-header-avatar" aria-hidden="true"></div>
+    </div>
+  </header>
+
   <div class="admin-main" id="admin-main">
-      <header class="admin-header">
-        <button class="admin-header-menu" type="button"
-                aria-label="Open navigation" aria-controls="admin-sidebar"
-                data-testid="admin-menu-btn" hidden>
-          <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-menu"></use></svg>
-        </button>
-
-        <div class="admin-header-search">
-          <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-search"></use></svg>
-          <input type="search" placeholder="Search tickets, residents, or ID…"
-                 aria-label="Search tickets, residents, or ID"
-                 id="admin-search" data-testid="admin-search" autocomplete="off" />
-          <kbd class="kbd">Ctrl K</kbd>
-        </div>
-
-        <div class="admin-header-actions">
-          <button class="admin-header-bell" type="button"
-                  aria-label="Notifications, 0 unread" data-testid="admin-bell">
-            <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#i-bell"></use></svg>
-            <span class="badge-count" aria-hidden="true">0</span>
-          </button>
-          <div class="admin-header-avatar" id="admin-header-avatar" aria-hidden="true"></div>
-        </div>
-      </header>
-
-      <main class="admin-page" id="admin-page">
+    <main class="admin-page" id="admin-page">
         <div class="admin-page-header">
           <div>
             <h1 class="admin-page-title" id="dash-title">Tickets</h1>
@@ -173,11 +167,6 @@
                   aria-selected="true" aria-controls="panel-tickets" data-tab="tickets">
             <span>Tickets</span>
             <span class="count" id="tickets-count" data-testid="tickets-count">…</span>
-          </button>
-          <button type="button" class="admin-tab" role="tab" id="tab-inquiries"
-                  aria-selected="false" aria-controls="panel-inquiries" data-tab="inquiries" tabindex="-1">
-            <span>Inquiries</span>
-            <span class="count" id="inquiries-count" data-testid="inquiries-count">…</span>
           </button>
         </div>
 
@@ -281,8 +270,9 @@
               <thead>
                 <tr>
                   <th scope="col">Ticket ID</th>
-                  <th scope="col">Issue</th>
                   <th scope="col">Resident</th>
+                  <th scope="col">Issue</th>
+                  <th scope="col">Type</th>
                   <th scope="col">Assignee</th>
                   <th scope="col">Status</th>
                   <th scope="col">Updated</th>
@@ -296,40 +286,97 @@
               <!-- mobile fallback: existing card layout (hidden on desktop) -->
             </div>
           </div>
-        </section>
 
-        <section id="panel-inquiries" role="tabpanel" aria-labelledby="tab-inquiries"
-                 class="admin-panel" data-testid="panel-inquiries" hidden>
-          <div class="admin-filters" data-testid="inquiry-status-filter" role="group" aria-label="Filter by status">
-            <span class="filter-label">Status</span>
-            <button type="button" class="filter-pill is-active" data-inq-status="" data-testid="filter-inq-all">All</button>
-            <button type="button" class="filter-pill" data-inq-status="waiting" data-testid="filter-inq-waiting">Waiting</button>
-            <button type="button" class="filter-pill" data-inq-status="active" data-testid="filter-inq-active">Active</button>
-            <button type="button" class="filter-pill" data-inq-status="resolved" data-testid="filter-inq-resolved">Resolved</button>
-          </div>
-          <div class="admin-table-wrap" data-view="table">
-            <table class="admin-table" id="inquiry-table">
-              <thead>
-                <tr>
-                  <th scope="col">Subject</th>
-                  <th scope="col">Resident</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Last activity</th>
-                </tr>
-              </thead>
-              <tbody id="inquiry-tbody" data-testid="inquiry-list" aria-live="polite">
-                <!-- filled by js/admin.js -->
-              </tbody>
-            </table>
-            <div class="admin-cards" id="inquiry-cards" aria-live="polite">
-              <!-- mobile fallback -->
+          <!--
+            Pagination footer — appears below the tickets table when
+            there's more than one page. Hidden when the filtered total
+            is 0. JS populates the page buttons + the "Showing X to Y
+            of Z tickets" text. The page-size <select> lives on the
+            right next to the page buttons. The whole block is
+            [hidden] by default; renderPagination() removes the
+            attribute once state.ticketsTotal > 0.
+          -->
+          <div class="admin-pagination" id="ticket-pagination"
+               data-testid="ticket-pagination" hidden>
+            <span class="admin-pagination-info" id="ticket-pagination-info"
+                  data-testid="ticket-pagination-info" aria-live="polite"></span>
+            <div class="admin-pagination-controls">
+              <label class="admin-pagination-size" data-testid="ticket-page-size-wrap">
+                <span class="admin-pagination-size-label">Rows</span>
+                <select id="ticket-page-size" data-testid="ticket-page-size"
+                        aria-label="Tickets per page">
+                  <option value="10" selected>10</option>
+                  <option value="20">20</option>
+                  <option value="30">30</option>
+                  <option value="50">50</option>
+                </select>
+              </label>
+              <div class="admin-pagination-pages" id="ticket-pagination-pages"
+                   role="group" aria-label="Pagination">
+                <!-- page buttons (Prev / 1 2 3 / Next) filled by
+                     renderPagination() in js/admin.js -->
+              </div>
             </div>
           </div>
         </section>
+
       </main>
     </div>
 
     <aside class="admin-rightrail" aria-label="At a glance" id="admin-rightrail">
+      <!--
+        Inquiries — moved out of the middle column. The list of recent
+        inquiries now lives in the right rail, above Recent activity.
+        The filter pills (All / Waiting / Active / Resolved) live
+        inside this section so the user can scope the rail list.
+        The full inquiries RPC is still loaded in the background so
+        the rail list can filter without re-fetching.
+      -->
+      <section class="admin-rail-card admin-inquiries-rail" aria-labelledby="rail-inquiries-title" id="rail-inquiries">
+        <header class="admin-rail-card-head">
+          <h2 id="rail-inquiries-title" class="admin-rail-card-title">Inquiries</h2>
+          <span class="admin-rail-card-count" id="inquiries-count" data-testid="inquiries-count">…</span>
+        </header>
+        <div class="admin-inquiries-pills" data-testid="inquiry-status-filter" role="group" aria-label="Filter by status">
+          <button type="button" class="filter-pill is-active" data-inq-status="" data-testid="filter-inq-all">All</button>
+          <button type="button" class="filter-pill" data-inq-status="waiting" data-testid="filter-inq-waiting">Waiting</button>
+          <button type="button" class="filter-pill" data-inq-status="active" data-testid="filter-inq-active">Active</button>
+          <button type="button" class="filter-pill" data-inq-status="resolved" data-testid="filter-inq-resolved">Resolved</button>
+        </div>
+        <ul class="admin-inquiries-list" id="rail-inquiries-body" data-testid="inquiry-list" aria-live="polite">
+          <!-- filled by renderInquiriesRail() in js/admin.js; one <li> per inquiry -->
+        </ul>
+      </section>
+
+      <!--
+        Waiting to Be Accepted — unassigned + pending tickets. The card
+        mirrors the Inquiries card's shape (same .admin-rail-card
+        surface, .admin-rail-card-head + count, an <ul> aria-live list)
+        but adds a per-row Accept button. The whole section is [hidden]
+        until the first fetch lands, then revealed by
+        renderWaitingTicketsRail() in js/admin.js. State source of truth
+        is `state.waitingTickets`, populated by a list_staff_tickets
+        call with p_status_filter='pending' +
+        p_assignee_filter='unassigned' + p_limit=200. Real-time updates
+        are covered by the existing subscribeTickets() channel — any
+        change to the tickets table triggers a debounced refetch of the
+        waiting queue (the row appears or vanishes within ~1s).
+      -->
+      <section class="admin-rail-card admin-waiting-rail" id="rail-waiting"
+               aria-labelledby="rail-waiting-title" hidden>
+        <header class="admin-rail-card-head">
+          <h2 id="rail-waiting-title" class="admin-rail-card-title">Waiting to Be Accepted</h2>
+          <span class="admin-rail-card-count" id="waiting-count" data-testid="waiting-count">…</span>
+        </header>
+        <p class="admin-waiting-hint" id="waiting-hint">
+          Click <strong>Accept</strong> to take ownership and move the ticket to In Process.
+        </p>
+        <ul class="admin-waiting-list" id="rail-waiting-body"
+            data-testid="waiting-list" aria-live="polite">
+          <!-- filled by renderWaitingTicketsRail() in js/admin.js; one <li> per waiting ticket -->
+        </ul>
+      </section>
+
       <section class="admin-rail-card" aria-labelledby="rail-activity-title" id="activity">
         <h2 id="rail-activity-title" class="admin-rail-card-title">Recent activity</h2>
         <ul class="admin-activity-list" id="rail-activity-body" data-testid="rail-activity">

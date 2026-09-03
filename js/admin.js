@@ -70,6 +70,15 @@ var state = {
   // wireClearAllFilters.
   searchQuery: '',
   tickets: [],
+  // Pagination — the page-size selector defaults to 10 (matches the
+  // <option value="10" selected> in the markup). `pageIndex` is 0-based
+  // (page 1 = 0) so the offset math is just `pageIndex * pageSize`.
+  // `totalTickets` is filled by count_tickets_filtered (the new sibling
+  // RPC from migration 0014) so the pagination footer can render
+  // "Showing 1 to 10 of 24 tickets" honestly under any filter.
+  pageSize: 10,
+  pageIndex: 0,
+  totalTickets: 0,
   inquiries: [],
   loading: { tickets: true, inquiries: true },
   error: { tickets: null, inquiries: null },
@@ -169,6 +178,7 @@ async function main() {
   wireSidebarNav();
   wireTrendRange();
   wireDonutLegend();
+  wirePagination();
   swapViewForViewport();
   window.addEventListener('resize', swapViewForViewport);
 
@@ -342,7 +352,7 @@ function applyStatusFilter(status) {
     b.setAttribute('aria-pressed',
       (b.dataset.status || '') === state.statusFilter ? 'true' : 'false');
   });
-  loadTickets();
+  resetPageAndReload();
 }
 
 function wireStatusFilters() {
@@ -382,7 +392,7 @@ function wireKindFilters() {
     row.querySelectorAll('.filter-pill').forEach(function (b) { b.classList.remove('is-active'); });
     btn.classList.add('is-active');
     state.kindFilter = btn.dataset.kind || '';
-    loadTickets();
+    resetPageAndReload();
   });
 }
 
@@ -416,7 +426,7 @@ function wireFilterRow() {
         b.setAttribute('aria-pressed',
           (b.dataset.status || '') === v ? 'true' : 'false');
       });
-      loadTickets();
+      resetPageAndReload();
     });
   }
   // Type
@@ -424,7 +434,7 @@ function wireFilterRow() {
   if (kindSel) {
     kindSel.addEventListener('change', function () {
       state.kindFilter = kindSel.value || '';
-      loadTickets();
+      resetPageAndReload();
     });
   }
   // Assignee
@@ -432,7 +442,7 @@ function wireFilterRow() {
   if (assigneeSel) {
     assigneeSel.addEventListener('change', function () {
       state.assigneeFilter = assigneeSel.value || '';
-      loadTickets();
+      resetPageAndReload();
     });
   }
   // Date — 8-option <select> (Any / Today / Yesterday / Last week /
@@ -483,7 +493,7 @@ function wireFilterRow() {
       showRange(false);
     }
     if (triggerLoad) {
-      loadTickets();
+      resetPageAndReload();
       updateClearAllVisibility();
     }
   }
@@ -642,6 +652,7 @@ function wireClearAllFilters() {
     // Donut legend sync.
     var legendRows = document.querySelectorAll('[data-testid^="donut-legend-"]');
     legendRows.forEach(function (b) { b.setAttribute('aria-pressed', 'false'); });
+    if (state.pageIndex !== 0) state.pageIndex = 0;
     loadTickets();
     updateClearAllVisibility();
   });
@@ -900,13 +911,18 @@ async function loadTickets() {
 
   try {
     var c = await getClient();
-    // Three parallel RPCs:
-    //   1. list_staff_tickets (paginated, 50 most-recent) — drives the
-    //      table list with the active status / kind / assignee filter.
-    //   2. count_tickets_by_status (aggregate, no LIMIT) — drives the
+    // Four parallel RPCs:
+    //   1. list_staff_tickets (paginated, p_limit + p_offset) — drives
+    //      the table list with the active status / kind / assignee
+    //      filter. The page size + offset come from state.pageSize
+    //      and state.pageIndex * state.pageSize.
+    //   2. count_tickets_filtered (aggregate, no LIMIT) — drives the
+    //      pagination footer total so "Showing 1 to 10 of 24 tickets"
+    //      is honest under any filter combination.
+    //   3. count_tickets_by_status (aggregate, no LIMIT) — drives the
     //      KPI cards and the "All tickets" donut, so the headline
     //      counts reflect the WHOLE table, not just the visible slice.
-    //   3. count_tickets_by_assignee (aggregate, no LIMIT) — drives
+    //   4. count_tickets_by_assignee (aggregate, no LIMIT) — drives
     //      the Assignee filter pill counts. A failure here is
     //      non-fatal: the pills still render with `(0)`.
     // The dashboard was previously computing KPI counts from the
@@ -918,13 +934,22 @@ async function loadTickets() {
       p_assignee_filter: state.assigneeFilter || null,
       p_from_date:       state.dateFrom        || null,
       p_to_date:         state.dateTo          || null,
-      p_limit: 50,
+      p_limit:  state.pageSize,
+      p_offset: state.pageIndex * state.pageSize,
+    });
+    var filteredCountRpc = c.rpc('count_tickets_filtered', {
+      p_status_filter:   state.statusFilter   || null,
+      p_kind_filter:     state.kindFilter     || null,
+      p_assignee_filter: state.assigneeFilter || null,
+      p_from_date:       state.dateFrom        || null,
+      p_to_date:         state.dateTo          || null,
     });
     var countRpc   = c.rpc('count_tickets_by_status');
     var assigneeRpc = c.rpc('count_tickets_by_assignee');
 
-    var listData      = await unwrap(await withTimeout(listRpc,     RPC_TIMEOUT_MS, 'list_staff_tickets'));
-    var countData     = await unwrap(await withTimeout(countRpc,    RPC_TIMEOUT_MS, 'count_tickets_by_status'));
+    var listData         = await unwrap(await withTimeout(listRpc,         RPC_TIMEOUT_MS, 'list_staff_tickets'));
+    var filteredCountRaw = await unwrap(await withTimeout(filteredCountRpc, RPC_TIMEOUT_MS, 'count_tickets_filtered'));
+    var countData        = await unwrap(await withTimeout(countRpc,        RPC_TIMEOUT_MS, 'count_tickets_by_status'));
     // The assignee RPC failure is non-fatal — leave the prior counts
     // in place so the pills don't flicker to 0 on a transient error.
     try {
@@ -935,6 +960,11 @@ async function loadTickets() {
     }
 
     state.tickets      = Array.isArray(listData) ? listData : [];
+    // count_tickets_filtered returns a bigint; coerce to a plain number
+    // for the pagination footer math. Guard against null / undefined /
+    // string variants so a stale Supabase cache can't crash the page.
+    var total = Number(filteredCountRaw);
+    state.totalTickets = Number.isFinite(total) && total >= 0 ? total : state.tickets.length;
     state.ticketCounts = countsFromRpc(Array.isArray(countData) ? countData : []);
   } catch (err) {
     state.error.tickets = friendlyError(err);
@@ -1038,7 +1068,133 @@ function renderTicketsTable() {
     var card = buildTicketCard(t);
     if (cards) cards.appendChild(card);
   });
+
+  // Pagination footer stays in sync with the table on every render.
+  // Cheap: renderPagination() just rebuilds a handful of <button>s.
+  renderPagination();
 }
+
+/**
+ * Render the pagination footer under the tickets table.
+ *
+ * Visible only when state.totalTickets > 0. Shows "Showing X to Y of
+ * Z tickets" + a Prev button, page-number buttons, and a Next button.
+ * The current page is highlighted with the orange accent and carries
+ * aria-current="page". Prev is disabled on page 1; Next is disabled
+ * on the last page. Calls back into loadTickets() via the click
+ * delegation installed by wirePagination().
+ *
+ * The page count is derived as `ceil(total / pageSize)`, clamped to
+ * at least 1 so a non-empty table never renders an empty page strip.
+ */
+function renderPagination() {
+  var wrap    = document.getElementById('ticket-pagination');
+  var info    = document.getElementById('ticket-pagination-info');
+  var pagesEl = document.getElementById('ticket-pagination-pages');
+  if (!wrap || !info || !pagesEl) return;
+
+  var total = state.totalTickets || 0;
+  if (total <= 0) {
+    wrap.hidden = true;
+    info.textContent = '';
+    pagesEl.innerHTML = '';
+    return;
+  }
+  wrap.hidden = false;
+
+  var pageSize  = state.pageSize  > 0 ? state.pageSize : 10;
+  var pageCount = Math.max(1, Math.ceil(total / pageSize));
+  // Clamp pageIndex back into range — can happen if a filter shrank
+  // the result set below the current offset.
+  if (state.pageIndex >= pageCount) state.pageIndex = pageCount - 1;
+  if (state.pageIndex < 0)           state.pageIndex = 0;
+
+  var from = state.pageIndex * pageSize + 1;
+  var to   = Math.min(total, from + pageSize - 1);
+  info.textContent = 'Showing ' + from + ' to ' + to + ' of ' + total + ' ticket' + (total === 1 ? '' : 's');
+
+  // Clear and rebuild the page buttons on every render. Cheap (max
+  // ~7 chips even for a 1000-page table — the page list is
+  // truncated via buildPageList) and avoids the complexity of diffing.
+  pagesEl.innerHTML = '';
+  pagesEl.appendChild(buildPaginationButton({
+    label: '‹', pageIndex: state.pageIndex - 1, isActive: false,
+    isDisabled: state.pageIndex === 0, kind: 'prev',
+  }));
+  var pageList = buildPageList(state.pageIndex, pageCount);
+  for (var i = 0; i < pageList.length; i++) {
+    var item = pageList[i];
+    if (item === '…') {
+      pagesEl.appendChild(buildPaginationEllipsis());
+    } else {
+      pagesEl.appendChild(buildPaginationButton({
+        label: String(item + 1), pageIndex: item,
+        isActive: item === state.pageIndex, isDisabled: false,
+      }));
+    }
+  }
+  pagesEl.appendChild(buildPaginationButton({
+    label: '›', pageIndex: state.pageIndex + 1, isActive: false,
+    isDisabled: state.pageIndex >= pageCount - 1, kind: 'next',
+  }));
+}
+
+/**
+ * Wire the page-size selector + delegated click handler on the page
+ * strip. Both reset state.pageIndex to 0 when the filter set changes
+ * (page size change, status change, kind change, etc.) so the user
+ * doesn't end up stranded on a non-existent page.
+ *
+ * Idempotent: replaces the click listener with a fresh one each call,
+ * so repeated renders don't pile up handlers.
+ */
+
+/**
+ * Filter helpers call this instead of loadTickets() directly so any
+ * filter change (status / kind / assignee / date / search / clear-all)
+ * also resets to page 1. Skips the reset if we're already on page 0
+ * (cheap no-op that keeps the previous "filter change = no jump" feel).
+ */
+function resetPageAndReload() {
+  if (state.pageIndex !== 0) state.pageIndex = 0;
+  return loadTickets();
+}
+
+function wirePagination() {
+  var sizeEl  = document.getElementById('ticket-page-size');
+  var pagesEl = document.getElementById('ticket-pagination-pages');
+  if (!sizeEl || !pagesEl) return;
+
+  // The page-size <select> already has a value attribute in HTML; we
+  // just keep state.pageSize in sync on the first call.
+  var initial = parseInt(sizeEl.value, 10);
+  if (Number.isFinite(initial) && initial > 0) state.pageSize = initial;
+
+  // .cloneNode(true) + replaceWith is the cheap way to strip existing
+  // listeners without keeping a reference to the previous function.
+  var newSize = sizeEl.cloneNode(true);
+  sizeEl.parentNode.replaceChild(newSize, sizeEl);
+  newSize.addEventListener('change', function () {
+    var n = parseInt(newSize.value, 10);
+    if (!Number.isFinite(n) || n <= 0) return;
+    state.pageSize  = n;
+    state.pageIndex = 0;
+    loadTickets();
+  });
+
+  var newPages = pagesEl.cloneNode(true);
+  pagesEl.parentNode.replaceChild(newPages, pagesEl);
+  newPages.addEventListener('click', function (ev) {
+    var btn = ev.target && ev.target.closest && ev.target.closest('.admin-pagination-btn');
+    if (!btn || btn.disabled) return;
+    var raw = parseInt(btn.dataset.page, 10);
+    if (!Number.isFinite(raw) || raw < 0) return;
+    if (raw === state.pageIndex) return; // no-op
+    state.pageIndex = raw;
+    loadTickets();
+  });
+}
+
 
 // Skeleton placeholder rows
 function renderSkeleton(tbody, cards, n) {
@@ -1046,7 +1202,7 @@ function renderSkeleton(tbody, cards, n) {
     for (var i = 0; i < n; i++) {
       var tr = document.createElement('tr');
       var td = document.createElement('td');
-      td.colSpan = 6;
+      td.colSpan = 7;
       td.className = 'admin-loading';
       td.textContent = 'Loading…';
       tr.appendChild(td);
@@ -1065,7 +1221,7 @@ function renderError(tbody, cards, msg) {
   if (tbody) {
     var tr = document.createElement('tr');
     var td = document.createElement('td');
-    td.colSpan = 6;
+    td.colSpan = 7;
     td.className = 'admin-error';
     td.textContent = msg;
     tr.appendChild(td);
@@ -1083,7 +1239,7 @@ function renderEmpty(tbody, cards, title, hint) {
   if (tbody) {
     var tr = document.createElement('tr');
     var td = document.createElement('td');
-    td.colSpan = 6;
+    td.colSpan = 7;
     var wrap = document.createElement('div');
     wrap.className = 'admin-empty';
     var h = document.createElement('p');
@@ -1221,24 +1377,40 @@ export function buildTicketRow(t) {
   tdId.textContent = t.id;
   tr.appendChild(tdId);
 
-  // Issue (title + kind)
+  // Resident (matches the thead order: ID, Resident, Issue, Type…)
+  var tdResident = document.createElement('td');
+  tdResident.className = 'admin-table-cell-resident';
+  tdResident.textContent = t.resident_name || 'Anonymous';
+  tr.appendChild(tdResident);
+
+  // Issue (title only — kind moved to its own column to match the thead)
   var tdTitle = document.createElement('td');
   var titleEl = document.createElement('span');
   titleEl.className = 'admin-table-cell-title';
   titleEl.textContent = t.title || '(no title)';
   titleEl.setAttribute('title', t.title || '');
   tdTitle.appendChild(titleEl);
-  var meta = document.createElement('div');
-  meta.className = 'admin-table-cell-meta';
-  meta.textContent = ticketKindLabel(t.kind);
-  tdTitle.appendChild(meta);
   tr.appendChild(tdTitle);
 
-  // Resident
-  var tdResident = document.createElement('td');
-  tdResident.className = 'admin-table-cell-resident';
-  tdResident.textContent = t.resident_name || 'Anonymous';
-  tr.appendChild(tdResident);
+  // Type — the kind badge (Request / Report) in its own column, with
+  // the same color treatment used in the mobile card so staff can scan
+  // the table for "what kind of work is this" without reading titles.
+  // The kind-* class on the cell lets CSS color the chip differently
+  // for requests vs reports, and the .kind-unknown fallback for null
+  // / empty kinds keeps the row from looking broken. The <td> stays
+  // display:table-cell (default) so the row's bottom-border still
+  // aligns across all cells; the styled chip is a child <span>.
+  var tdType = document.createElement('td');
+  var kindKey = (t.kind || '').toString();
+  var kindClass = kindKey === 'request' ? 'kind-request'
+                : kindKey === 'report'  ? 'kind-report'
+                : 'kind-unknown';
+  tdType.className = 'admin-table-cell-type ' + kindClass;
+  var typeChip = document.createElement('span');
+  typeChip.className = 'admin-table-cell-type-chip';
+  typeChip.textContent = ticketKindLabel(t.kind);
+  tdType.appendChild(typeChip);
+  tr.appendChild(tdType);
 
   // Assignee — reads `assigned_official_id` + `assigned_official_name`
   // directly from the row (the SQL LEFT JOIN supplies both). Null id
@@ -1778,6 +1950,98 @@ export function buildTrendAriaLabel(days) {
   return head + body + '.';
 }
 
+/**
+ * Pure: build the list of page indices + ellipsis markers that the
+ * pagination footer should render, given the current page and the
+ * total number of pages. Returns an array of either integers (real
+ * page numbers) or the string '…' (ellipsis placeholders).
+ *
+ * Pattern (matches the screenshot target):
+ *   - 7 or fewer pages  →  [1, 2, 3, 4, 5, 6, 7]
+ *   - otherwise, with currentPage = 0:
+ *       [1, 2, 3, '…', lastPage - 1, lastPage]
+ *   - with currentPage = 4 of 8:
+ *       [1, 2, '…', 4, 5, 6, '…', 8]
+ *   - with currentPage = 7 of 8:
+ *       [1, 2, '…', lastPage - 2, lastPage - 1, lastPage]
+ *
+ * The goal is "first 2, current ±1, last 2, with '…' filling the
+ * gaps" — a compact, scannable strip that works for any total.
+ */
+export function buildPageList(currentPage, pageCount) {
+  if (!Number.isFinite(pageCount) || pageCount <= 1) {
+    return pageCount === 1 ? [0] : [];
+  }
+  if (pageCount <= 7) {
+    var out = [];
+    for (var i = 0; i < pageCount; i++) out.push(i);
+    return out;
+  }
+  var cp = Math.max(0, Math.min(currentPage, pageCount - 1));
+  // Build a Set of "must show" pages: 0, 1, cp-1, cp, cp+1, last-1, last
+  var show = new Set([0, 1, cp - 1, cp, cp + 1, pageCount - 2, pageCount - 1]);
+  var sorted = Array.from(show)
+    .filter(function (p) { return p >= 0 && p < pageCount; })
+    .sort(function (a, b) { return a - b; });
+  // Walk sorted, inserting '…' between non-consecutive integers
+  var result = [];
+  for (var k = 0; k < sorted.length; k++) {
+    if (k > 0 && sorted[k] !== sorted[k - 1] + 1) result.push('…');
+    result.push(sorted[k]);
+  }
+  return result;
+}
+
+/**
+ * Pure: build a non-interactive ellipsis placeholder for the
+ * pagination strip. Returns a <span> with the right class so it
+ * sits in the same row as the page buttons.
+ */
+export function buildPaginationEllipsis() {
+  var el = document.createElement('span');
+  el.className = 'admin-pagination-ellipsis';
+  el.textContent = '…';
+  el.setAttribute('aria-hidden', 'true');
+  return el;
+}
+
+/**
+ * Pure: build a single page-number / prev / next button for the
+ * tickets pagination footer. Returns a real <button> DOM node so
+ * the click handler can be attached by the caller.
+ *
+ * @param {object} opts
+ * @param {string} opts.label      Visible text ("‹", "›", "1", "2"…)
+ * @param {number} opts.pageIndex  0-based page this button represents.
+ *                                 For Prev/Next, the page it navigates TO.
+ * @param {boolean} opts.isActive  When true, renders as the current page
+ *                                 (orange accent + aria-current).
+ * @param {boolean} opts.isDisabled When true, renders disabled (used for
+ *                                 Prev on page 1 and Next on the last page).
+ * @param {string} [opts.kind]     "page" (default) or "prev" or "next" — only
+ *                                 affects the aria-label.
+ */
+export function buildPaginationButton(opts) {
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'admin-pagination-btn';
+  if (opts.kind === 'prev') btn.classList.add('admin-pagination-prev');
+  if (opts.kind === 'next') btn.classList.add('admin-pagination-next');
+  if (opts.isActive)       btn.classList.add('is-active');
+  if (opts.isDisabled)     btn.disabled = true;
+  btn.textContent = String(opts.label);
+  btn.dataset.page = String(opts.pageIndex);
+  // aria-label is what the screen reader announces; the visible text
+  // is just the symbol/number so the same component covers page numbers,
+  // prev, and next.
+  var humanKind = opts.kind === 'prev' ? 'Previous page'
+                : opts.kind === 'next' ? 'Next page'
+                : 'Page ' + (opts.pageIndex + 1);
+  btn.setAttribute('aria-label', humanKind);
+  if (opts.isActive) btn.setAttribute('aria-current', 'page');
+  return btn;
+}
+
 function renderTrendChart() {
   var body = document.getElementById('admin-trend-body');
   if (!body) return;
@@ -2046,7 +2310,13 @@ function wireRealtime() {
   realtimeUnsubs.push(
     subscribeTickets(function () {
       if (tTimer) clearTimeout(tTimer);
-      tTimer = setTimeout(function () { loadTickets(); }, 250);
+      // Realtime insert should land the user on page 1 so the new
+      // ticket is visible. Existing records in state.tickets may have
+      // shifted (insert/updates can change totalTickets).
+      tTimer = setTimeout(function () {
+        if (state.pageIndex !== 0) state.pageIndex = 0;
+        loadTickets();
+      }, 250);
       if (aTimer) clearTimeout(aTimer);
       aTimer = setTimeout(function () { loadActivity(); }, 250);
       // Trend is a 30s-debounced refetch — chart should feel "live"

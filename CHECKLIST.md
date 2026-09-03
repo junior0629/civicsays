@@ -189,6 +189,14 @@ Three-column shell: persistent left sidebar, fluid center (KPI cards + tabbed Ti
 - [x] Realtime subscription: ticket + inquiry changes re-fetch (debounced 250ms)
 - [x] Right-rail "Recent activity" feed from `list_recent_staff_activity` RPC, live-updated
 - [x] Right-rail "Ticket overview" legend + bars (no fake donut, empty states dimmed)
+- [x] **Waiting to Be Accepted** card (right rail, between Inquiries and Recent activity)
+  - [x] Lists every ticket where `status = 'pending'` AND `assigned_official_id IS NULL` (via `list_staff_tickets` with those filters + limit 200)
+  - [x] Per-row Accept button: `accept_ticket(p_ticket_id)` RPC (migration 0015) atomically assigns to current official, flips status to `in_process`, posts the "Ticket has been accepted by [Name]" system comment (the status flip also auto-posts a "Status changed to In Process" comment + a `ticket_status_history` row via the existing 0003 trigger, all in one transaction)
+  - [x] Optimistic local removal on click + manual refetch + toast; the realtime `subscribeTickets()` channel re-renders within ~1s
+  - [x] Skeleton loading state, error state (`friendlyErrorForStaff`), empty state with check icon
+  - [x] Card is `[hidden]` on first paint so it never flashes empty
+  - [x] `tests/buildWaitingTicketRow.test.js` — 14 tests covering shape, data attrs, badge label, XSS safety, defensive missing fields, aria-label
+  - [x] `friendlyErrorForStaff` migration hint extended to mention 0015 / `accept_ticket` for the "function not in schema cache" case
 
 **Phase 6 demo**: log in, see stats reflecting the seeded 10 demo tickets (4 pending, 2 in process, 2 hold, 2 solved). Filter by status works. New tickets / status changes appear without refresh via Realtime. Right-rail activity feed reflects the most recent status change + official reply.
 

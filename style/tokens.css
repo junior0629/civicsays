@@ -182,9 +182,10 @@
      Sidebar + content + right rail. Right rail collapses below 1200px;
      sidebar collapses into a drawer below 900px.
      ------------------------------------------------------------------------- */
-  --sidebar-width:        240px;
-  --rightrail-width:      280px;
-  --rightrail-breakpoint: 1200px;   /* hides below */
+  --sidebar-width:        280px;    /* wider so the nav labels don't feel cramped */
+  --rightrail-width:      400px;    /* generous so card content (IDs, titles, resident name) doesn't truncate */
+  --rightrail-breakpoint: 1440px;   /* hides below — keeps the table from feeling cramped */
+  --rightrail-padding-x:  32px;     /* breathing room after the divider */
   --admin-header-height:  64px;
   --admin-content-max:    1440px;
 }

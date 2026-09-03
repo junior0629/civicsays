@@ -10,10 +10,36 @@
    ------------------------------------------------------------------------- */
 .admin-shell {
   display: grid;
+  /* Sidebar (280) + main (1fr) + right rail (400). The right rail
+     is wide enough to host the Inquiries + Waiting + Activity lists
+     without truncating their copy. */
   grid-template-columns: var(--sidebar-width) 1fr var(--rightrail-width);
-  min-height: 100vh;
+  /* Two rows: row 1 is the admin header, row 2 is the body (sidebar
+     spans both rows so its brand sits flush at the top; main and
+     right rail share row 2). */
+  grid-template-rows: var(--admin-header-height) 1fr;
+  height: 100vh;
+  overflow: hidden;
   background: var(--bg-primary);
 }
+
+.admin-header {
+  /* Span only the main column and the right rail (NOT the sidebar).
+     The sidebar keeps its own top (CivicSays brand + nav) and runs
+     the full height. The header is a horizontal band that starts
+     where the sidebar ends and goes all the way to the right edge
+     of the right rail. */
+  grid-column: 2 / -1;
+  grid-row: 1 / 2;
+  z-index: var(--z-nav);
+}
+
+/* The shell children go in row 2 — except the sidebar, which spans
+   both rows so the CivicSays brand sits at the top of column 1
+   underneath (well, beside) the header band. */
+.admin-sidebar  { grid-column: 1 / 2; grid-row: 1 / 3; }
+.admin-main     { grid-column: 2 / 3; grid-row: 2 / 3; }
+.admin-rightrail{ grid-column: 3 / 4; grid-row: 2 / 3; }
 
 /* When the body has .has-admin-sidebar the public .navbar is hidden by
    style/layout.css. The grid itself starts at the top of the viewport. */
@@ -231,6 +257,15 @@
   display: flex;
   flex-direction: column;
   min-width: 0;             /* prevent overflow from long ticket titles */
+  /* The shell is locked to 100vh; the main column is the second
+     shell child in row 2 and gets the remaining vertical space.
+     overflow-y: auto lets the main content (KPI row, trend row,
+     tabs, table, pagination) scroll internally so the page
+     itself never scrolls. The header is sticky on the .admin-main
+     column so it stays visible while the table scrolls. */
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .admin-header {
@@ -384,13 +419,13 @@
    ------------------------------------------------------------------------- */
 .admin-page {
   flex: 1;
-  padding: var(--space-6) var(--space-6) var(--space-12);
+  padding: var(--space-3) var(--space-4) var(--space-4);
   max-width: var(--admin-content-max);
   width: 100%;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: var(--space-6);
+  gap: var(--space-3);
 }
 
 @media (max-width: 640px) {
@@ -441,10 +476,10 @@
   background: var(--glass-primary);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-card);
-  padding: var(--space-4) var(--space-5);
+  padding: var(--space-3) var(--space-4);
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-1);
   min-width: 0;
 }
 
@@ -612,7 +647,7 @@
      SVG from forcing horizontal overflow when the column shrinks. */
   grid-template-columns: minmax(0, 1.6fr) minmax(360px, 1fr);
   gap: var(--space-4);
-  margin-bottom: var(--space-6);
+  margin-bottom: 5px;
 }
 .admin-trend-row > .admin-trend-card { margin-bottom: 0; }
 
@@ -649,8 +684,8 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  height: 40px;
-  padding: 0 var(--space-4);
+  height: 30px;
+  padding: 0 var(--space-3);
   background: transparent;
   border: 0;
   border-bottom: 2px solid transparent;
@@ -708,7 +743,7 @@
 }
 
 .filter-pill {
-  height: 30px;
+  height: 28px;
   padding: 0 var(--space-4);
   background: var(--glass-secondary);
   border: 1px solid var(--border-default);
@@ -776,7 +811,7 @@
 }
 
 .admin-table tbody td {
-  padding: var(--space-3) var(--space-4);
+  padding: 4px var(--space-4);
   border-bottom: 1px solid var(--border-default);
   vertical-align: middle;
   color: var(--text-primary);
@@ -784,12 +819,16 @@
 
 .admin-table tbody tr:last-child td { border-bottom: 0; }
 
-.admin-table-cell-id {
+.admin-table tbody td.admin-table-cell-id {
   font-family: var(--font-mono);
   color: var(--accent);
   font-size: var(--fs-xs);
   letter-spacing: var(--letter-wide);
   white-space: nowrap;
+  text-align: left;
+  /* Selector bumped to match `.admin-table tbody td`'s specificity
+     (0,1,2) so the orange wins over the default text-primary. */
+  font-weight: var(--fw-medium);
 }
 
 .admin-table-cell-title {
@@ -810,6 +849,31 @@
 
 .admin-table-cell-resident {
   color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.admin-table-cell-type {
+  /* The <td> wrapper. Stays as display:table-cell (default) so the
+     row's bottom-border aligns across all seven columns — making the
+     <td> itself display:block would break that alignment. The visual
+     chip is a child <span> (see .admin-table-cell-type-chip). */
+  text-align: left !important;
+  direction: ltr;
+  vertical-align: middle;
+}
+
+.admin-table-cell-type-chip {
+  /* "Request" / "Report" label inside the type cell. inline-block so
+     it sits at the cell's left padding without stretching the row.
+     Compact: 12px uppercase with tracking, secondary text color, no
+     background — same label-style as the thead rhythm. */
+  display: inline-block;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  line-height: 1.2;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: var(--letter-wider);
   white-space: nowrap;
 }
 
@@ -837,8 +901,8 @@
 .admin-rightrail {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  padding: var(--space-6) var(--space-5) var(--space-12);
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-4) var(--space-6);
   border-left: 1px solid var(--border-default);
   background: var(--bg-primary);
   position: sticky;
@@ -852,10 +916,10 @@
   background: var(--glass-primary);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-card);
-  padding: var(--space-4) var(--space-5);
+  padding: var(--space-3) var(--space-4);
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
 
 .admin-rail-card-title {
@@ -867,18 +931,32 @@
   margin: 0;
 }
 
+.admin-rail-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.admin-rail-card-count {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Overview legend */
 .rail-overview-list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
 
 .rail-overview-row {
   display: grid;
   grid-template-columns: 12px 1fr auto;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
 
 .rail-overview-row .dot {
@@ -1014,13 +1092,13 @@ button.rail-overview-row[disabled] { cursor: not-allowed; }
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
 
 .admin-activity-item {
   display: flex;
   align-items: flex-start;
-  gap: var(--space-3);
+  gap: var(--space-2);
   font-size: var(--fs-sm);
   line-height: 1.4;
 }
@@ -1229,8 +1307,8 @@ button.rail-overview-row[disabled] { cursor: not-allowed; }
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  flex-wrap: wrap;
-  padding: var(--space-2) 0;
+  flex-wrap: nowrap;
+  padding: 0;
 }
 
 .admin-filter-bar-search {
@@ -1239,7 +1317,7 @@ button.rail-overview-row[disabled] { cursor: not-allowed; }
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  height: 36px;
+  height: 28px;
   padding: 0 var(--space-3);
   background: var(--glass-input);
   border: 1px solid var(--border-default);
@@ -1269,7 +1347,7 @@ button.rail-overview-row[disabled] { cursor: not-allowed; }
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  height: 36px;
+  height: 28px;
   padding: 0 0 0 var(--space-2);
   background: var(--glass-input);
   border: 1px solid var(--border-default);
@@ -1380,7 +1458,7 @@ button.rail-overview-row[disabled] { cursor: not-allowed; }
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  height: 36px;
+  height: 28px;
   padding: 0 var(--space-2);
   background: var(--glass-input);
   border: 1px solid var(--border-default);
@@ -1469,3 +1547,156 @@ button.rail-overview-row[disabled] { cursor: not-allowed; }
     animation: none;
   }
 }
+
+/* -------------------------------------------------------------------------
+   Tickets table pagination footer
+   ------------------------------------------------------------------------- */
+.admin-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 8px var(--space-4);
+  border-top: 1px solid var(--border-default);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+
+.admin-pagination-info {
+  /* "Showing 1 to 10 of 75 tickets" — left side */
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.admin-pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.admin-pagination-size {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.admin-pagination-size-label {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--letter-wider);
+  text-transform: uppercase;
+}
+
+.admin-pagination-size select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background: var(--glass-input);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-input);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  padding: 4px 26px 4px 10px;
+  height: 28px;
+  cursor: pointer;
+  color-scheme: dark;
+  accent-color: var(--accent);
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%2377736E' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='3,5 6,8 9,5'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 12px 12px;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+.admin-pagination-size select:hover,
+.admin-pagination-size select:focus-visible {
+  border-color: var(--accent);
+  outline: 0;
+}
+
+.admin-pagination-pages {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: 28px;
+}
+
+.admin-pagination-btn {
+  /* Page chip — pill shape, 30px square so single digits read as a
+     filled circle. Inactive chips are transparent; the active chip
+     is filled with the orange accent (matches the screenshot). */
+  min-width: 28px;
+  height: 28px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font: var(--fw-medium) var(--fs-xs)/1 var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+
+.admin-pagination-btn:hover:not(:disabled):not(.is-active) {
+  color: var(--text-primary);
+  background: var(--glass-hover);
+}
+
+.admin-pagination-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.admin-pagination-btn.is-active {
+  /* The current page — solid orange fill, white text, like the
+     attached reference. */
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+  cursor: default;
+}
+
+.admin-pagination-btn:disabled {
+  /* Prev on page 1, Next on the last page */
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.admin-pagination-ellipsis {
+  /* "…" between the truncated middle pages. Not a button — purely
+     decorative so we don't trigger a navigation on click. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  color: var(--text-muted);
+  font: var(--fw-medium) var(--fs-xs)/1 var(--font-sans);
+  user-select: none;
+}
+
+@media (max-width: 1100px) {
+  /* The page strip is the most space-flexible chunk. Stack the
+     controls under the info on narrow viewports instead of cramping. */
+  .admin-pagination {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .admin-pagination-controls { width: 100%; justify-content: space-between; }
+}
+

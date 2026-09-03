@@ -1,7 +1,10 @@
 // =========================================================================
 // tests/activateTab.test.js
-// Verifies the WAI-ARIA tabs pattern: aria-selected, tabindex, hidden
-// panels, and the is-active class all flip in lockstep.
+// Verifies the WAI-ARIA single-tab pattern: the Tickets tab is always
+// selected, regardless of the caller's argument. Inquiries moved out
+// of the middle column into the right rail, so there's nothing to
+// flip anymore — but the helper is still exported and still does
+// the right thing for any incoming refs.
 // =========================================================================
 
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -36,9 +39,7 @@ function makeEl(tag) {
 function makeRefs() {
   return {
     tabTickets:   makeEl('button'),
-    tabInquiries: makeEl('button'),
     panelTickets: makeEl('section'),
-    panelInquiries: makeEl('section'),
   };
 }
 
@@ -50,27 +51,22 @@ describe('activateTab', function () {
     refs = makeRefs();
   });
 
-  it('selects tickets by default and hides inquiries', function () {
+  it('always selects tickets and shows the panel', function () {
     var r = activateTab(refs, 'tickets');
     expect(r).toBe('tickets');
     expect(refs.tabTickets.getAttribute('aria-selected')).toBe('true');
-    expect(refs.tabInquiries.getAttribute('aria-selected')).toBe('false');
     expect(refs.tabTickets.getAttribute('tabindex')).toBe('0');
-    expect(refs.tabInquiries.getAttribute('tabindex')).toBe('-1');
+    expect(refs.tabTickets.classList.contains('is-active')).toBe(true);
     expect(refs.panelTickets.hidden).toBe(false);
-    expect(refs.panelInquiries.hidden).toBe(true);
   });
 
-  it('flips the selection when activated with inquiries', function () {
-    activateTab(refs, 'tickets');
+  it('still selects tickets when given "inquiries" (no longer a tab)', function () {
+    // Inquiries has moved to the right rail; activateTab is a
+    // single-tab helper now and ignores the second argument.
     var r = activateTab(refs, 'inquiries');
-    expect(r).toBe('inquiries');
-    expect(refs.tabTickets.getAttribute('aria-selected')).toBe('false');
-    expect(refs.tabInquiries.getAttribute('aria-selected')).toBe('true');
-    expect(refs.tabTickets.getAttribute('tabindex')).toBe('-1');
-    expect(refs.tabInquiries.getAttribute('tabindex')).toBe('0');
-    expect(refs.panelTickets.hidden).toBe(true);
-    expect(refs.panelInquiries.hidden).toBe(false);
+    expect(r).toBe('tickets');
+    expect(refs.tabTickets.getAttribute('aria-selected')).toBe('true');
+    expect(refs.panelTickets.hidden).toBe(false);
   });
 
   it('treats unknown tab values as tickets', function () {
@@ -79,12 +75,13 @@ describe('activateTab', function () {
     expect(refs.tabTickets.getAttribute('aria-selected')).toBe('true');
   });
 
-  it('toggles the is-active class', function () {
+  it('is idempotent — repeated calls leave state settled', function () {
     activateTab(refs, 'tickets');
+    activateTab(refs, 'tickets');
+    activateTab(refs, 'tickets');
+    expect(refs.tabTickets.getAttribute('aria-selected')).toBe('true');
+    expect(refs.tabTickets.getAttribute('tabindex')).toBe('0');
     expect(refs.tabTickets.classList.contains('is-active')).toBe(true);
-    expect(refs.tabInquiries.classList.contains('is-active')).toBe(false);
-    activateTab(refs, 'inquiries');
-    expect(refs.tabTickets.classList.contains('is-active')).toBe(false);
-    expect(refs.tabInquiries.classList.contains('is-active')).toBe(true);
+    expect(refs.panelTickets.hidden).toBe(false);
   });
 });
