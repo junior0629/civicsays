@@ -46,10 +46,36 @@
 --   - Changing the page size to 10 re-fetches and shows 3 pages.
 --   - Applying any filter resets to page 1.
 --   - Realtime ticket insert resets to page 1.
+--
+-- HEALING NOTE: this script drops EVERY existing overload of
+-- `list_staff_tickets` and `count_tickets_filtered` before creating
+-- the new signatures. Older versions used a single targeted
+-- `drop function if exists public.list_staff_tickets(text, text,
+-- text, text, text, int, int)` which only matched the 7-arg
+-- signature — if the DB had 3-/4-/5-arg overloads from earlier
+-- migrations, the drop was a no-op and the new function landed
+-- on top of them, confusing PostgREST. The DO block at the top of
+-- this script self-heals that case; on a clean DB it's a no-op.
 -- =========================================================================
 
+do $$
+declare
+  r record;
+begin
+  for r in
+    select proname,
+           pg_get_function_identity_arguments(oid) as args
+    from pg_proc
+    where pronamespace = 'public'::regnamespace
+      and proname in ('list_staff_tickets', 'count_tickets_filtered')
+  loop
+    execute format('drop function if exists public.%I(%s) cascade',
+                   r.proname, r.args);
+  end loop;
+end
+$$;
+
 -- 1. list_staff_tickets (replaced with p_offset, LIMIT clamp 200)
-drop function if exists public.list_staff_tickets(text, text, text, text, text, int, int);
 
 create or replace function public.list_staff_tickets(
   p_status_filter    text default null,
@@ -116,7 +142,6 @@ comment on function public.list_staff_tickets(text, text, text, text, text, int,
   'Staff-only list of tickets with optional status, kind, assignee, and date filters. LIMIT clamped to 1-200, OFFSET clamped to >=0. Assignee: null=all, ''unassigned''=NULL bucket, otherwise=uuid. Date: both null=no filter, p_from_date inclusive, p_to_date inclusive (full day via to_date+1day comparison).';
 
 -- 2. count_tickets_filtered — sibling aggregate
-drop function if exists public.count_tickets_filtered(text, text, text, text, text);
 
 create or replace function public.count_tickets_filtered(
   p_status_filter    text default null,

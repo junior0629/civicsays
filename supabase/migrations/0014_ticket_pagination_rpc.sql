@@ -27,13 +27,47 @@
 -- RLS: no new policy required. Both functions are SECURITY DEFINER
 -- and gated on `current_official_id()`.
 --
--- Idempotent: drop if exists + create or replace.
+-- Idempotent: drop-all-overloads + create or replace.
+--
+-- IMPORTANT: prior versions of this file used
+--   `drop function if exists public.list_staff_tickets(text, text,
+--    text, text, text, int, int)`
+-- to remove the old signature before adding the new one. That drop
+-- only matches the 7-arg signature. If the DB already has 3-, 4-, or
+-- 5-arg overloads of list_staff_tickets (e.g. from earlier migrations
+-- applied out of order — 0009 → 0013 → 0014 — or 0014 applied
+-- against a polluted baseline), the targeted drop matches nothing
+-- and the `create or replace` lands on top of the existing overloads.
+-- PostgREST then sees multiple candidates and refuses to call any of
+-- them, producing a "could not find the function … in the schema
+-- cache" error. Same trap applies to `count_tickets_filtered`.
+--
+-- The DO block below drops every existing overload by `proname`,
+-- regardless of signature, before the canonical create runs. Safe to
+-- re-run; on a clean DB it drops zero rows and the creates are
+-- effectively the same as the old behavior.
 -- =========================================================================
+
+do $$
+declare
+  r record;
+begin
+  for r in
+    select proname,
+           pg_get_function_identity_arguments(oid) as args
+    from pg_proc
+    where pronamespace = 'public'::regnamespace
+      and proname in ('list_staff_tickets', 'count_tickets_filtered')
+  loop
+    execute format('drop function if exists public.%I(%s) cascade',
+                   r.proname, r.args);
+  end loop;
+end
+$$;
 
 -- -------------------------------------------------------------------------
 -- 1. list_staff_tickets — add p_offset, raise LIMIT clamp to 200
 -- -------------------------------------------------------------------------
-drop function if exists public.list_staff_tickets(text, text, text, text, text, int, int);
 
 create or replace function public.list_staff_tickets(
   p_status_filter    text default null,
@@ -105,7 +139,6 @@ comment on function public.list_staff_tickets(text, text, text, text, text, int,
 --    count under the same filter combination so the pagination
 --    footer can render "Showing X to Y of Z tickets" honestly.
 -- -------------------------------------------------------------------------
-drop function if exists public.count_tickets_filtered(text, text, text, text, text);
 
 create or replace function public.count_tickets_filtered(
   p_status_filter    text default null,

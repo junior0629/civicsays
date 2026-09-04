@@ -337,12 +337,6 @@
           <h2 id="rail-inquiries-title" class="admin-rail-card-title">Inquiries</h2>
           <span class="admin-rail-card-count" id="inquiries-count" data-testid="inquiries-count">…</span>
         </header>
-        <div class="admin-inquiries-pills" data-testid="inquiry-status-filter" role="group" aria-label="Filter by status">
-          <button type="button" class="filter-pill is-active" data-inq-status="" data-testid="filter-inq-all">All</button>
-          <button type="button" class="filter-pill" data-inq-status="waiting" data-testid="filter-inq-waiting">Waiting</button>
-          <button type="button" class="filter-pill" data-inq-status="active" data-testid="filter-inq-active">Active</button>
-          <button type="button" class="filter-pill" data-inq-status="resolved" data-testid="filter-inq-resolved">Resolved</button>
-        </div>
         <ul class="admin-inquiries-list" id="rail-inquiries-body" data-testid="inquiry-list" aria-live="polite">
           <!-- filled by renderInquiriesRail() in js/admin.js; one <li> per inquiry -->
         </ul>

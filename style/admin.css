@@ -1556,9 +1556,10 @@ button.rail-overview-row[disabled] { cursor: not-allowed; }
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  padding: 8px var(--space-4);
+  padding: 6px var(--space-4);
   border-top: 1px solid var(--border-default);
   font-size: var(--fs-xs);
+  line-height: 1;
   color: var(--text-muted);
   flex-wrap: wrap;
 }
@@ -1585,10 +1586,11 @@ button.rail-overview-row[disabled] { cursor: not-allowed; }
 }
 
 .admin-pagination-size-label {
-  font-size: var(--fs-xs);
+  font-size: 11px;
   font-weight: var(--fw-medium);
-  letter-spacing: var(--letter-wider);
+  letter-spacing: var(--letter-wide);
   text-transform: uppercase;
+  line-height: 1;
 }
 
 .admin-pagination-size select {
@@ -1602,8 +1604,9 @@ button.rail-overview-row[disabled] { cursor: not-allowed; }
   font: inherit;
   font-size: var(--fs-xs);
   font-weight: var(--fw-medium);
-  padding: 4px 26px 4px 10px;
-  height: 28px;
+  line-height: 1;
+  padding: 0 26px 0 10px;
+  height: 24px;
   cursor: pointer;
   color-scheme: dark;
   accent-color: var(--accent);
@@ -1626,16 +1629,16 @@ button.rail-overview-row[disabled] { cursor: not-allowed; }
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  height: 28px;
+  height: 24px;
 }
 
 .admin-pagination-btn {
-  /* Page chip — pill shape, 30px square so single digits read as a
-     filled circle. Inactive chips are transparent; the active chip
-     is filled with the orange accent (matches the screenshot). */
-  min-width: 28px;
-  height: 28px;
-  padding: 0 10px;
+  /* Page chip — pill shape, 24px tall so the digit reads compact
+     next to the Rows <select>. Inactive chips are transparent; the
+     active chip is filled with the orange accent. */
+  min-width: 24px;
+  height: 24px;
+  padding: 0 8px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1643,7 +1646,7 @@ button.rail-overview-row[disabled] { cursor: not-allowed; }
   border: 1px solid transparent;
   border-radius: 999px;
   color: var(--text-secondary);
-  font: var(--fw-medium) var(--fs-xs)/1 var(--font-sans);
+  font: var(--fw-medium) 11px/1 var(--font-sans);
   font-variant-numeric: tabular-nums;
   cursor: pointer;
   transition:
@@ -1683,11 +1686,99 @@ button.rail-overview-row[disabled] { cursor: not-allowed; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 28px;
-  height: 28px;
+  min-width: 24px;
+  height: 24px;
   color: var(--text-muted);
-  font: var(--fw-medium) var(--fs-xs)/1 var(--font-sans);
+  font: var(--fw-medium) 11px/1 var(--font-sans);
   user-select: none;
+}
+
+/* -------------------------------------------------------------------------
+   Waiting to Be Accepted (right rail)
+   -------------------------------------------------------------------------
+   One <li.admin-waiting-row> per pending+unassigned ticket. Three
+   inline elements: the CIV id (mono), the title (truncates by CSS),
+   and an Accept button. The button is the only thing here that
+   changes on click — the rest is read-only text. The card is
+   hidden until the first fetch lands (see .is-skeleton / .is-empty
+   / .is-error below for the three loading states). */
+.admin-waiting-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.admin-waiting-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 4px 10px;
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  font-size: var(--fs-sm);
+  line-height: 1.3;
+  min-height: 32px;
+}
+.admin-waiting-row .id {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.admin-waiting-row .title {
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.admin-waiting-row .accept-btn {
+  /* Same .btn-primary shape as the rest of the dashboard so the
+     action reads as a button, not a chip. */
+  height: 24px;
+  padding: 0 12px;
+  font-size: var(--fs-xs);
+  line-height: 1;
+  font-weight: var(--fw-medium);
+  border-radius: var(--radius-button);
+  white-space: nowrap;
+}
+.admin-waiting-row.is-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-elevated) 0%,
+    var(--glass-hover) 50%,
+    var(--bg-elevated) 100%
+  );
+  background-size: 200% 100%;
+  animation: admin-skeleton 1.4s linear infinite;
+  min-height: 32px;
+}
+.admin-waiting-row.is-empty {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  justify-content: center;
+  background: transparent;
+  border-style: dashed;
+}
+.admin-waiting-row.is-error {
+  color: var(--status-error);
+  font-size: var(--fs-xs);
+  background: var(--status-error-soft);
+  border-color: rgba(233, 106, 106, 0.30);
+}
+.admin-waiting-hint {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  margin: 0;
+}
+@keyframes admin-skeleton {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 @media (max-width: 1100px) {

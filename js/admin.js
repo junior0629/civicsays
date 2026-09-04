@@ -52,7 +52,6 @@ var state = {
   activeTab: 'tickets',
   statusFilter: '',
   kindFilter: '',
-  inqStatusFilter: '',
   assigneeFilter: '',
   // Date filter — `datePreset` is one of '' (Any), 'today',
   // 'yesterday', 'last_week', 'last_month', 'this_year',
@@ -80,8 +79,9 @@ var state = {
   pageIndex: 0,
   totalTickets: 0,
   inquiries: [],
-  loading: { tickets: true, inquiries: true },
-  error: { tickets: null, inquiries: null },
+  waitingTickets: [],
+  loading: { tickets: true, inquiries: true, waiting: true },
+  error: { tickets: null, inquiries: null, waiting: null },
   activity: [],
   activityLoading: true,
   activityError: null,
@@ -123,11 +123,29 @@ function withTimeout(promise, ms, label) {
 function friendlyErrorForStaff(err, what) {
   var msg = String(err || '').toLowerCase();
   if (/could not find the function|schema cache|pgrst202/.test(msg)) {
-    return 'The dashboard is missing a recent database update. ' +
-      'Please ask your administrator to run supabase/dev/0008_apply_0013_assignee.sql ' +
-      'in the Supabase SQL editor, then hard-refresh this page. ' +
-      'The new filter dropdowns need the count_tickets_by_assignee() RPC and the updated ' +
-      'list_staff_tickets() (with p_assignee_filter + assigned_official_name) that 0008 installs.';
+    // Try to pull the actual function name from the PostgREST error
+    // so the user knows exactly what's missing. PostgREST 202 errors
+    // look like: "Could not find the function public.foo(bar, baz)
+    // in the schema cache". The capture group pulls the whole
+    // "public.foo(...)" call.
+    var m = msg.match(/function\s+(public\.[a-z_]+)\s*\(/);
+    var missingFn = m ? m[1] : 'a recent RPC';
+
+    // Map each known RPC to the SQL file that installs it. Adding a
+    // new staff RPC? Add a row here so the error stays actionable.
+    var owners = {
+      'public.list_staff_tickets':       'supabase/dev/0008_apply_0013_assignee.sql (assignee) AND supabase/dev/0009_apply_0014_pagination.sql (pagination)',
+      'public.count_tickets_filtered':   'supabase/dev/0009_apply_0014_pagination.sql',
+      'public.count_tickets_by_assignee':'supabase/dev/0008_apply_0013_assignee.sql',
+      'public.accept_ticket':            'supabase/dev/0010_apply_0015_accept.sql',
+      'public.list_recent_staff_activity':'a migrations 0009 / 0010 SQL file',
+    };
+    var install = owners[m ? m[1] : ''] || 'supabase/dev/0008_apply_0013_assignee.sql, supabase/dev/0009_apply_0014_pagination.sql, and supabase/dev/0010_apply_0015_accept.sql';
+
+    return 'The dashboard called ' + missingFn + '() and the Supabase schema cache ' +
+      'does not know about it. Please ask your administrator to paste the contents of ' +
+      install + ' into the Supabase SQL editor, then hard-refresh this page. ' +
+      'Each one-paste script is idempotent — safe to re-run.';
   }
   if (/timed out/.test(msg)) {
     return 'The request to load ' + what + ' took too long. ' +
@@ -169,7 +187,6 @@ async function main() {
   wireFilterRow();
   wireFilterRowSearch();
   wireClearAllFilters();
-  wireInquiryStatusFilters();
   wireSearch();
   wireKeyboardShortcuts();
   wireHamburger();
@@ -190,6 +207,7 @@ async function main() {
     loadOfficials(),
     loadTickets(),
     loadInquiries(),
+    loadWaitingTickets(),
   ]);
   await loadActivity();
   await loadTrend();
@@ -272,19 +290,19 @@ async function onSignOut() {
 }
 
 // -------------------------------------------------------------------------
-// Tabs — same WAI-ARIA pattern as before; tests rely on `activateTab`.
+// Tabs — single-tab helper. The Inquiries panel moved out of the
+// middle column into the right rail, so there's only one tab left
+// to flip. This helper still honors the (refs, tab) signature so
+// the existing tests pass, but it ignores the second argument —
+// "tickets" is the only valid state, and any other value (including
+// the old "inquiries") is coerced to it.
 // -------------------------------------------------------------------------
-export function activateTab(refs, tab) {
-  var isTickets = tab !== 'inquiries';
-  refs.tabTickets.setAttribute('aria-selected', String(isTickets));
-  refs.tabTickets.classList.toggle('is-active', isTickets);
-  refs.tabTickets.setAttribute('tabindex', isTickets ? '0' : '-1');
-  refs.tabInquiries.setAttribute('aria-selected', String(!isTickets));
-  refs.tabInquiries.classList.toggle('is-active', !isTickets);
-  refs.tabInquiries.setAttribute('tabindex', isTickets ? '-1' : '0');
-  refs.panelTickets.hidden = !isTickets;
-  refs.panelInquiries.hidden = isTickets;
-  return isTickets ? 'tickets' : 'inquiries';
+export function activateTab(refs /* , tab */) {
+  refs.tabTickets.setAttribute('aria-selected', 'true');
+  refs.tabTickets.classList.toggle('is-active', true);
+  refs.tabTickets.setAttribute('tabindex', '0');
+  if (refs.panelTickets) refs.panelTickets.hidden = false;
+  return 'tickets';
 }
 
 function wireTabs() {
@@ -675,19 +693,6 @@ function updateClearAllVisibility() {
   );
   if (anyActive) link.removeAttribute('hidden');
   else link.setAttribute('hidden', '');
-}
-
-function wireInquiryStatusFilters() {
-  var row = document.querySelector('[data-testid="inquiry-status-filter"]');
-  if (!row) return;
-  row.addEventListener('click', function (e) {
-    var btn = e.target.closest('.filter-pill');
-    if (!btn) return;
-    row.querySelectorAll('.filter-pill').forEach(function (b) { b.classList.remove('is-active'); });
-    btn.classList.add('is-active');
-    state.inqStatusFilter = btn.dataset.inqStatus || '';
-    loadInquiries();
-  });
 }
 
 function wireSearch() {
@@ -1441,6 +1446,190 @@ export function buildTicketRow(t) {
   return tr;
 }
 
+// -------------------------------------------------------------------------
+// buildWaitingTicketRow — pure <li> builder for the
+// "Waiting to Be Accepted" right-rail card. Every row here is, by
+// definition, status=pending and assigned_official_id IS NULL. The card
+// title is the label, so the row itself is just three things:
+//   - the CIV id (mono, one line)
+//   - the title (truncated by CSS, hover tooltip = title + resident + time)
+//   - a per-row "Accept" button that calls accept_ticket(p_ticket_id)
+//
+// Mirrors the buildTicketRow / buildTicketCard test style: no network,
+// no getClient, no document.getElementById — pure DOM from inputs.
+// -------------------------------------------------------------------------
+export function buildWaitingTicketRow(t, currentOfficialName) {
+  var safeName = (currentOfficialName || '').toString().trim() || 'me';
+
+  var li = document.createElement('li');
+  li.className = 'admin-waiting-row';
+  li.setAttribute('data-ticket-id', t && t.id ? String(t.id) : '');
+  li.setAttribute('data-status',    t && t.status ? String(t.status) : '');
+
+  // Line 1: id (mono) + title.
+  var idSpan = document.createElement('span');
+  idSpan.className = 'id';
+  idSpan.textContent = (t && t.id) ? String(t.id) : 'CIV-???';
+  li.appendChild(idSpan);
+
+  var titleSpan = document.createElement('span');
+  titleSpan.className = 'title';
+  var titleText = (t && t.title) ? String(t.title) : '(no title)';
+  titleSpan.textContent = titleText;
+  // Hover tooltip carries the second line of info (resident + time)
+  // so the row can stay a single ~32px line in the 400px rail.
+  var resident = (t && t.resident_name) ? String(t.resident_name) : 'Anonymous';
+  var when = formatRelative(t && t.created_at);
+  titleSpan.setAttribute('title', titleText + ' — ' + resident + ' · ' + when);
+  li.appendChild(titleSpan);
+
+  // Line 2: Accept button. The action is atomic — assign to me + flip
+  // status to in_process + post a system comment — all server-side.
+  // aria-label is explicit so screen-reader users hear the side-effect
+  // (not just "Accept" with no context).
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'btn-primary accept-btn';
+  btn.textContent = 'Accept';
+  btn.setAttribute('data-testid', 'waiting-accept-' + (t && t.id ? t.id : ''));
+  btn.setAttribute(
+    'aria-label',
+    'Accept ticket ' + (t && t.id ? t.id : '') +
+    ' and assign to ' + safeName +
+    ' — status will move to In Process and a system comment will be posted.'
+  );
+  if (t && t.id) {
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      onAcceptTicket(String(t.id), btn);
+    });
+  } else {
+    btn.disabled = true;
+  }
+  li.appendChild(btn);
+
+  return li;
+}
+
+// -------------------------------------------------------------------------
+// Data load — waiting tickets (unassigned + pending). Calls the same
+// list_staff_tickets RPC the main table uses, but with hard-coded
+// status=pending + assignee=unassigned + a 200-row cap. The realtime
+// subscribeTickets() channel covers the auto-refresh path.
+// -------------------------------------------------------------------------
+async function loadWaitingTickets() {
+  state.loading.waiting = true;
+  state.error.waiting = null;
+  renderWaitingTicketsRail();
+
+  try {
+    var c = await getClient();
+    var rpc = c.rpc('list_staff_tickets', {
+      p_status_filter:    'pending',
+      p_kind_filter:      null,
+      p_assignee_filter:  'unassigned',
+      p_search:           null,
+      p_date_preset:      null,
+      p_date_from:        null,
+      p_date_to:          null,
+      p_limit:            200,
+      p_offset:           0,
+    });
+    var data = await unwrap(await withTimeout(rpc, RPC_TIMEOUT_MS, 'list_staff_tickets'));
+    state.waitingTickets = Array.isArray(data) ? data : [];
+  } catch (err) {
+    state.error.waiting = friendlyErrorForStaff(err, 'waiting tickets');
+    state.waitingTickets = [];
+  } finally {
+    state.loading.waiting = false;
+    renderWaitingTicketsRail();
+  }
+}
+
+function renderWaitingTicketsRail() {
+  var section = document.getElementById('rail-waiting');
+  var body    = document.getElementById('rail-waiting-body');
+  var countEl = document.getElementById('waiting-count');
+  if (!section || !body) return;
+
+  // First-paint: keep the section hidden until the first fetch lands
+  // so the card never flashes empty.
+  if (state.loading.waiting && state.waitingTickets.length === 0) {
+    section.hidden = false;
+    if (countEl) countEl.textContent = '…';
+    body.innerHTML = '';
+    // 3 skeleton rows so the card doesn't look broken during load.
+    for (var i = 0; i < 3; i++) {
+      var sk = document.createElement('li');
+      sk.className = 'admin-waiting-row is-skeleton';
+      body.appendChild(sk);
+    }
+    return;
+  }
+
+  if (state.error.waiting) {
+    section.hidden = false;
+    if (countEl) countEl.textContent = '!';
+    body.innerHTML = '';
+    var errLi = document.createElement('li');
+    errLi.className = 'admin-waiting-row is-error';
+    errLi.textContent = state.error.waiting;
+    body.appendChild(errLi);
+    return;
+  }
+
+  section.hidden = false;
+  if (countEl) countEl.textContent = String(state.waitingTickets.length);
+  body.innerHTML = '';
+
+  if (state.waitingTickets.length === 0) {
+    var emptyLi = document.createElement('li');
+    emptyLi.className = 'admin-waiting-row is-empty';
+    emptyLi.textContent = '0 tickets waiting to be accepted.';
+    body.appendChild(emptyLi);
+    return;
+  }
+
+  // currentOfficialName is the staff member who will own the ticket on
+  // Accept. We pass it down so the aria-label is human and the
+  // system comment attributed correctly. auth.currentOfficialName is
+  // loaded by the existing loadOfficials() boot step.
+  var me = (state.currentOfficial && state.currentOfficial.full_name) || '';
+  state.waitingTickets.forEach(function (t) {
+    body.appendChild(buildWaitingTicketRow(t, me));
+  });
+}
+
+async function onAcceptTicket(ticketId, btn) {
+  if (!ticketId) return;
+  if (btn) { btn.disabled = true; btn.textContent = 'Accepting…'; }
+  try {
+    var c = await getClient();
+    var rpc = c.rpc('accept_ticket', { p_ticket_id: ticketId });
+    await unwrap(await withTimeout(rpc, RPC_TIMEOUT_MS, 'accept_ticket'));
+    if (typeof toast === 'function') {
+      toast('Ticket accepted. You are now the owner.', 'success', 3000);
+    }
+    // Optimistic local removal — the row disappears immediately
+    // instead of waiting for the realtime round-trip.
+    state.waitingTickets = state.waitingTickets.filter(function (t) {
+      return t && t.id !== ticketId;
+    });
+    renderWaitingTicketsRail();
+    // Refetch the main tickets list so the row appears in the table
+    // (now status=in_process, assigned to me) without a manual refresh.
+    loadTickets();
+  } catch (err) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Accept'; }
+    var msg = friendlyErrorForStaff(err, 'accept_ticket');
+    if (typeof toast === 'function') {
+      toast(msg, 'error', 5000);
+    } else {
+      alert(msg);
+    }
+  }
+}
+
 function makeBadge(text, cls) {
   var b = document.createElement('span');
   b.className = 'badge-inline ' + (cls || '');
@@ -1464,7 +1653,6 @@ async function loadInquiries() {
   try {
     var c = await getClient();
     var rpc = c.rpc('list_staff_inquiries', {
-      p_status_filter: state.inqStatusFilter || null,
       p_limit: 50,
     });
     var data = await unwrap(await withTimeout(rpc, RPC_TIMEOUT_MS, 'list_staff_inquiries'));
@@ -2316,6 +2504,7 @@ function wireRealtime() {
       tTimer = setTimeout(function () {
         if (state.pageIndex !== 0) state.pageIndex = 0;
         loadTickets();
+        loadWaitingTickets();
       }, 250);
       if (aTimer) clearTimeout(aTimer);
       aTimer = setTimeout(function () { loadActivity(); }, 250);
