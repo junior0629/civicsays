@@ -118,18 +118,29 @@ function withTimeout(promise, ms, label) {
  * Translate a raw RPC/Supabase error into something a staff user can
  * act on. The "function not in schema cache" case is the common one
  * after a fresh migration — make it actionable instead of dumping the
- * raw Supabase error.
+ * raw Supabase error. Two distinct shapes both produce PGRST202:
+ *   1. Function does not exist at all → "Could not find the function
+ *      public.X(...) in the schema cache" → user should re-apply the
+ *      migration that creates it.
+ *   2. Function exists, but no overload matches the supplied args
+ *      → "Could not find the function public.X(a, b, c) in the
+ *      schema cache" with a specific arg list → user has the right
+ *      migration applied but a JS call is sending the wrong shape
+ *      (extra/missing/renamed params). Different action.
+ * Both surface 404, so we keep them in the same branch but split the
+ * message based on whether we recognise the arg list.
  */
 function friendlyErrorForStaff(err, what) {
   var msg = String(err || '').toLowerCase();
   if (/could not find the function|schema cache|pgrst202/.test(msg)) {
-    // Try to pull the actual function name from the PostgREST error
-    // so the user knows exactly what's missing. PostgREST 202 errors
-    // look like: "Could not find the function public.foo(bar, baz)
-    // in the schema cache". The capture group pulls the whole
-    // "public.foo(...)" call.
-    var m = msg.match(/function\s+(public\.[a-z_]+)\s*\(/);
+    // Try to pull the actual function name and arg list from the
+    // PostgREST error. The error body looks like:
+    //   "Could not find the function public.list_staff_tickets(p_status_filter, p_kind_filter, p_assignee_filter, p_search, p_date_preset, p_date_from, p_date_to, p_limit, p_offset) in the schema cache"
+    // Group 1 = "public.fn_name", group 2 = the full arg list (may
+    // be empty for zero-arg functions).
+    var m = msg.match(/function\s+(public\.[a-z_]+)\s*\(([^)]*)\)/);
     var missingFn = m ? m[1] : 'a recent RPC';
+    var argList   = m ? m[2] : '';
 
     // Map each known RPC to the SQL file that installs it. Adding a
     // new staff RPC? Add a row here so the error stays actionable.
@@ -142,7 +153,25 @@ function friendlyErrorForStaff(err, what) {
     };
     var install = owners[m ? m[1] : ''] || 'supabase/dev/0008_apply_0013_assignee.sql, supabase/dev/0009_apply_0014_pagination.sql, and supabase/dev/0010_apply_0015_accept.sql';
 
-    return 'The dashboard called ' + missingFn + '() and the Supabase schema cache ' +
+    // If the function name is in the owners map, the migration IS
+    // applied — so the missing match is on the arg list, not the
+    // function. Tell the user the JS call is the problem and name
+    // the offending params.
+    if (owners[missingFn]) {
+      var params = argList
+        .split(',')
+        .map(function (p) { return p.trim(); })
+        .filter(Boolean);
+      return 'The dashboard called ' + missingFn + '(' + (params.join(', ') || 'no args') +
+        ') and no overload of that function matches those argument names. ' +
+        'The function is installed (per ' + install + '), so the call shape is stale. ' +
+        'Try a hard-refresh (Ctrl/Cmd-Shift-R) to clear the cached JS, then file a bug with this exact argument list.';
+    }
+
+    // Function name is not in the owners map → either the migration
+    // is missing or the JS is calling a function that doesn't exist
+    // yet. Send the user to the migration.
+    return 'The dashboard called ' + missingFn + '(' + argList + ') and the Supabase schema cache ' +
       'does not know about it. Please ask your administrator to paste the contents of ' +
       install + ' into the Supabase SQL editor, then hard-refresh this page. ' +
       'Each one-paste script is idempotent — safe to re-run.';
@@ -1524,16 +1553,19 @@ async function loadWaitingTickets() {
 
   try {
     var c = await getClient();
+    // Reuse the same 7-arg list_staff_tickets RPC the main table uses,
+    // pinned to status=pending + assignee=unassigned with a 200-row
+    // cap. No date filter, no pagination — the card just shows the
+    // current queue. The realtime subscribeTickets() channel covers
+    // the auto-refresh path.
     var rpc = c.rpc('list_staff_tickets', {
-      p_status_filter:    'pending',
-      p_kind_filter:      null,
-      p_assignee_filter:  'unassigned',
-      p_search:           null,
-      p_date_preset:      null,
-      p_date_from:        null,
-      p_date_to:          null,
-      p_limit:            200,
-      p_offset:           0,
+      p_status_filter:   'pending',
+      p_kind_filter:     null,
+      p_assignee_filter: 'unassigned',
+      p_from_date:       null,
+      p_to_date:         null,
+      p_limit:           200,
+      p_offset:          0,
     });
     var data = await unwrap(await withTimeout(rpc, RPC_TIMEOUT_MS, 'list_staff_tickets'));
     state.waitingTickets = Array.isArray(data) ? data : [];
