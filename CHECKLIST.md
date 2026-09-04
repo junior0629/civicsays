@@ -129,21 +129,21 @@ After a security audit applying the lenses from `backend-architect.md`, `fronten
 
 ## Phase 4 — Track + Ticket Detail (Resident)
 
-- [ ] `track.html` — single input for tracking ID, "Track" button → redirects to `ticket.html?id=...`
-- [ ] `js/track.js` — ID format validation client-side, redirect on valid format
-- [ ] `ticket.html` — three-section layout: info (left), issue (center), comments + history (right)
-- [ ] `js/ticket.js`:
-  - [ ] Load ticket by ID from URL query
-  - [ ] Render info section (ID, kind, status badge, submitted date, contact)
-  - [ ] Render issue section (location, title, description, photo, video link)
-  - [ ] Load + render comments chronologically
-  - [ ] Load + render status history timeline
-  - [ ] Resident comment form: name, phone (verify against ticket row), body → INSERT
-  - [ ] 404 state if ticket not found
-  - [ ] Realtime subscription: when status changes or new comment posted, refresh affected section without full reload
-- [ ] Empty state: "No comments yet" for tickets with zero comments
-- [ ] Photo: thumbnail in issue section, click to open full-size in lightbox modal
-- [ ] Video link: show as a card with thumbnail (if YouTube) + "Open video" link
+- [x] `track.html` — single input for tracking ID, "Track" button → redirects to `ticket.html?id=...`
+- [x] `js/track.js` — ID format validation client-side, redirect on valid format (live auto-uppercase + dash injection + alphabet filter)
+- [x] `ticket.html` — three-section layout: info (left), issue (center), comments + history (right)
+- [x] `js/ticket.js`:
+  - [x] Load ticket by ID from URL query
+  - [x] Render info section (ID, kind, status badge, submitted date, contact)
+  - [x] Render issue section (location, title, description, photo, video link)
+  - [x] Load + render comments chronologically
+  - [x] Load + render status history timeline
+  - [x] Resident comment form: name, phone (verify against ticket row), body → INSERT
+  - [x] 404 state if ticket not found
+  - [x] Realtime subscription: when status changes or new comment posted, refresh affected section without full reload
+- [x] Empty state: "No comments yet" for tickets with zero comments
+- [x] Photo: thumbnail in issue section, click to open full-size in lightbox modal
+- [ ] Video link: show as a card with thumbnail (if YouTube) + "Open video" link — *deferred. Current behavior: "Open video link" button that opens the URL in a new tab. The `videoEmbedUrl()` helper + CSP `frame-src` are already in place for when we want to add the embedded card.*
 
 **Phase 4 demo**: take a Phase 3 ID, enter on track page, see full detail. Post a resident comment. Refresh — comment persists. Change status from admin (Phase 7 prep) — see live update.
 
@@ -348,10 +348,11 @@ These were scattered as I built; consolidating here so they don't get lost:
 | 2 — Landing Page | ✅ Complete | Redesigned + placeholders |
 | 1.5 — Manual Supabase Setup | ✅ Complete | 7/7 verify.js checks green; bucket + officials row + Realtime + RPC all live |
 | 3 — Submit Ticket | ✅ Complete | 7/7 verify-phase3.js checks green; submit.html + submit.js live |
-| 4 — Track + Detail | 🔲 Not started | — |
-| 5 — Official Auth | 🔲 Not started | — |
-| 6 — Admin Shell | 🔲 Not started | — |
-| 7 — Ticket Mgmt | 🔲 Not started | — |
+| 4 — Track + Detail | ✅ Complete (video embed deferred) | Track page + ticket detail (load, render, comment form, realtime, 404, lightbox, empty) all in place. Video embed card deferred — current behavior is "Open video link" button. |
+| 5 — Official Auth | ✅ Complete (subsumed by 5b) | Supabase Auth + `getCurrentOfficial()` + login.html + sidebar mount on ticket.html. No dedicated phase-5 verification — the auth flow is exercised by every other phase. |
+| 5b — Staff Dashboard | ✅ Complete | Three-column shell, KPI counts, table + cards, filter bar, Inquiries rail, Recent activity feed, realtime. |
+| 6 — Admin Shell | ✅ Complete | Inquiries moved to right rail; "Waiting to Be Accepted" card added (per-row Accept button, `accept_ticket` RPC, optimistic remove, realtime re-fetch). |
+| 7 — Ticket Mgmt | ✅ Complete | "Move to next status" button + 3-dot More menu; official comment form; status history timeline; staff sidebar mounts on ticket.html with "Back to dashboard" breadcrumb. |
 | 8 — Resident Chat | 🔲 Not started | — |
 | 9 — Official Chat | 🔲 Not started | — |
 | 10 — Polish | 🔲 Not started | — |
